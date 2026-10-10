@@ -59,6 +59,15 @@ def api_world_regions():
     return jsonify(get_canonical_regions())
 
 
+@app.route("/api/respawns")
+def api_respawns():
+    from respawns import get_respawn_tracker
+    category = request.args.get("category", "all")
+    search = request.args.get("search", "").strip()
+    tracker = get_respawn_tracker()
+    return jsonify(tracker.get_respawns(category_filter=category, search_query=search))
+
+
 @app.route("/api/roster")
 def api_roster():
     st = get_state()
@@ -351,6 +360,10 @@ def index():
     </div>
     <div class="nav">
       <a class="nav-link active" data-tab="overview" onclick="setTab('overview')">Overview</a>
+      <a class="nav-link" data-tab="respawns" onclick="setTab('respawns')">
+        <span>Respawns</span>
+        <span class="badge" id="nav-respawns-count">0</span>
+      </a>
       <a class="nav-link" data-tab="players" onclick="setTab('players')">
         <span>Players</span>
         <span class="badge" id="nav-players-count">0</span>
@@ -365,6 +378,10 @@ def index():
       <hr>
       <a href="/status" target="_blank">
         <span>API Status</span>
+        <span style="font-size:11px;">↗</span>
+      </a>
+      <a href="/api/respawns" target="_blank">
+        <span>API Respawns</span>
         <span style="font-size:11px;">↗</span>
       </a>
       <a href="/api/weather" target="_blank">
@@ -406,6 +423,7 @@ def index():
     <!-- Mobile Navigation -->
     <div class="mobile-nav">
       <a class="mobile-link active" data-tab="overview" onclick="setTab('overview')">Overview</a>
+      <a class="mobile-link" data-tab="respawns" onclick="setTab('respawns')">Respawns</a>
       <a class="mobile-link" data-tab="players" onclick="setTab('players')">Players</a>
       <a class="mobile-link" data-tab="backups" onclick="setTab('backups')">Backups</a>
       <a class="mobile-link" data-tab="leaderboard" onclick="setTab('leaderboard')">Leaderboard</a>
@@ -798,6 +816,62 @@ def index():
         <div id="full-events-list">Loading events...</div>
       </div>
     </div>
+
+    <!-- VIEW 6: RESPAWNS TRACKER -->
+    <div id="view-respawns" style="display:none;">
+      <div class="card" style="margin-bottom:20px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:16px;">
+          <div>
+            <h2 style="margin:0; font-size:20px; font-weight:bold; color:#f8fafc; display:flex; align-items:center; gap:8px;">
+              <span>⏳</span> Resource & Chest Respawn Tracker
+            </h2>
+            <div style="font-size:13px; color:#94a3b8; margin-top:2px;">
+              Live telemetry tracking dungeon treasure vaults, 3-day net fishing nodes, high-tier ores & world boss encounters.
+            </div>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span class="data-source-badge live" title="Direct telemetry from server logs & active timers">⚡ Live Telemetry</span>
+            <span class="data-source-badge saved" title="Static cycle world registry">💾 World Registry</span>
+          </div>
+        </div>
+
+        <!-- Filter & Search Toolbar -->
+        <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center; justify-content:space-between; background:#0c1322; padding:12px 16px; border-radius:10px; border:1px solid #1c283f;">
+          <div class="pill-group" id="respawn-pills">
+            <button class="pill-btn active" onclick="setRespawnCategory('all', this)">All Categories</button>
+            <button class="pill-btn" onclick="setRespawnCategory('Dungeon Chests', this)">Dungeon Chests</button>
+            <button class="pill-btn" onclick="setRespawnCategory('Fishing Nets (3-Day Cycle)', this)">Fishing Nets (3-Day)</button>
+            <button class="pill-btn" onclick="setRespawnCategory('World Bosses & Elites', this)">Bosses & Elites</button>
+            <button class="pill-btn" onclick="setRespawnCategory('High-Tier Mining Ores', this)">Mining Ores</button>
+          </div>
+          <div style="display:flex; gap:8px; align-items:center; flex:1; max-width:320px;">
+            <input type="text" id="respawn-search-input" placeholder="Search chests, bosses, nodes..." oninput="filterRespawnsLive()"
+                   style="width:100%; background:#131c2e; border:1px solid #1e2c45; color:#f8fafc; padding:8px 12px; border-radius:8px; font-size:13px; outline:none;">
+          </div>
+        </div>
+      </div>
+
+      <!-- Respawns Grid / Table -->
+      <div class="card">
+        <div style="overflow-x:auto;">
+          <table class="table" style="width:100%; text-align:left; border-collapse:collapse;">
+            <thead>
+              <tr style="border-bottom:1px solid #1c283f; color:#94a3b8; font-size:12px; text-transform:uppercase;">
+                <th>Status</th>
+                <th>Target Resource</th>
+                <th>Category</th>
+                <th>Cycle Duration</th>
+                <th>Remaining / Ready Time</th>
+                <th>Source</th>
+              </tr>
+            </thead>
+            <tbody id="respawns-table-body">
+              <tr><td colspan="6" style="color:#94a3b8; text-align:center; padding:24px;">Scanning server telemetry for active respawns...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
   </main>
 </div>
 
@@ -846,6 +920,7 @@ function setTab(tab) {
   const vBackups = document.getElementById('view-backups');
   const vLeaderboard = document.getElementById('view-leaderboard');
   const vEvents = document.getElementById('view-events');
+  const vRespawns = document.getElementById('view-respawns');
 
   vOverview.style.display = 'none';
   vLogs.style.display = 'none';
@@ -853,11 +928,17 @@ function setTab(tab) {
   if (vBackups) vBackups.style.display = 'none';
   vLeaderboard.style.display = 'none';
   vEvents.style.display = 'none';
+  if (vRespawns) vRespawns.style.display = 'none';
 
   if (tab === 'overview') {
     title.innerText = 'Overview';
     subtitle.innerText = 'Real-time overview of your Dragonwilds server';
     vOverview.style.display = 'block';
+  } else if (tab === 'respawns') {
+    title.innerText = 'Respawn Tracker';
+    subtitle.innerText = 'Active timers for dungeon chests, fishing nets, world bosses & high-tier ores';
+    if (vRespawns) vRespawns.style.display = 'block';
+    loadRespawns();
   } else if (tab === 'logs') {
     title.innerText = 'Server Logs';
     subtitle.innerText = 'Stream, filter and search RSDragonwilds server logs';
@@ -1426,12 +1507,99 @@ function renderLogTerminal(autoScrollToEnd = true) {
   }
 }
 
+// ----------------- RESPAWNS TRACKER -----------------
+let allRespawns = [];
+let respawnCategory = 'all';
+
+async function loadRespawns() {
+  try {
+    const q = (document.getElementById('respawn-search-input') ? document.getElementById('respawn-search-input').value.trim() : '');
+    const url = `/api/respawns?category=${encodeURIComponent(respawnCategory)}&search=${encodeURIComponent(q)}`;
+    const res = await fetch(url);
+    allRespawns = await res.json();
+    renderRespawns();
+
+    const badge = document.getElementById('nav-respawns-count');
+    if (badge) {
+      const respawningCount = allRespawns.filter(r => !r.is_ready).length;
+      badge.innerText = respawningCount > 0 ? respawningCount : allRespawns.length;
+      badge.style.display = allRespawns.length > 0 ? 'inline' : 'none';
+    }
+  } catch(e) {}
+}
+
+function setRespawnCategory(cat, btn) {
+  respawnCategory = cat;
+  if (btn) {
+    document.querySelectorAll('#respawn-pills .pill-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+  loadRespawns();
+}
+
+function filterRespawnsLive() {
+  renderRespawns();
+}
+
+function renderRespawns() {
+  const body = document.getElementById('respawns-table-body');
+  if (!body) return;
+
+  const q = (document.getElementById('respawn-search-input') ? document.getElementById('respawn-search-input').value.toLowerCase().trim() : '');
+  const filtered = allRespawns.filter(r => {
+    if (respawnCategory !== 'all' && r.category !== respawnCategory) return false;
+    if (q) {
+      const matchName = (r.name || '').toLowerCase().includes(q);
+      const matchId = (r.id || '').toLowerCase().includes(q);
+      const matchCat = (r.category || '').toLowerCase().includes(q);
+      return matchName || matchId || matchCat;
+    }
+    return true;
+  });
+
+  if (filtered.length === 0) {
+    body.innerHTML = '<tr><td colspan="6" style="color:#94a3b8; text-align:center; padding:24px;">No matching respawns found.</td></tr>';
+    return;
+  }
+
+  body.innerHTML = filtered.map(r => {
+    const statusBadge = r.is_ready
+      ? '<span style="background:#064e3b; color:#34d399; padding:3px 10px; border-radius:999px; font-size:11.5px; font-weight:bold;">🟢 Ready to Loot</span>'
+      : '<span style="background:#78350f; color:#fde68a; padding:3px 10px; border-radius:999px; font-size:11.5px; font-weight:bold;">⏳ Respawning</span>';
+
+    const sourceBadge = r.source === 'live_log'
+      ? '<span class="data-source-badge live" title="Direct telemetry from server logs">⚡ Live Telemetry</span>'
+      : '<span class="data-source-badge saved" title="Static world cycle registry">💾 World Registry</span>';
+
+    const remainingColor = r.is_ready ? '#34d399' : '#f59e0b';
+
+    return `
+      <tr style="border-bottom:1px solid #141f33;">
+        <td style="padding:12px 14px;">${statusBadge}</td>
+        <td style="padding:12px 14px;">
+          <div style="font-weight:600; color:#f8fafc; font-size:14px;">${escapeHtml(r.name)}</div>
+          <div style="font-family:monospace; font-size:11.5px; color:#64748b; margin-top:2px;">${escapeHtml(r.id)}</div>
+        </td>
+        <td style="padding:12px 14px; color:#cbd5e1; font-size:13px;">${escapeHtml(r.category)}</td>
+        <td style="padding:12px 14px; color:#94a3b8; font-size:13px;">${escapeHtml(r.duration_formatted)}</td>
+        <td style="padding:12px 14px;">
+          <strong style="color:${remainingColor}; font-size:13.5px;">${escapeHtml(r.remaining_formatted)}</strong>
+          ${!r.is_ready && r.respawn_time ? `<div style="color:#64748b; font-size:11px;">at ${escapeHtml(r.respawn_time)}</div>` : ''}
+        </td>
+        <td style="padding:12px 14px;">${sourceBadge}</td>
+      </tr>
+    `;
+  }).join('');
+}
+
 // ----------------- REFRESH LOOPS -----------------
 async function refreshAll() {
   await loadStatus();
   await loadLeaderboard();
   await loadSaveFiles();
+  await loadRespawns();
   if (currentTab === 'players') await loadRoster();
+  if (currentTab === 'respawns') await loadRespawns();
   if (currentTab === 'logs' && isLive) {
     await fetchLogs();
   }
@@ -1439,7 +1607,7 @@ async function refreshAll() {
 
 // Initial hash support
 const hash = (window.location.hash || '').replace('#', '');
-if (['overview', 'players', 'backups', 'leaderboard', 'events', 'logs'].includes(hash)) {
+if (['overview', 'respawns', 'players', 'backups', 'leaderboard', 'events', 'logs'].includes(hash)) {
   setTab(hash);
 } else {
   setTab('overview');
@@ -1448,10 +1616,13 @@ if (['overview', 'players', 'backups', 'leaderboard', 'events', 'logs'].includes
 refreshAll();
 setInterval(loadStatus, 4000);
 setInterval(() => {
+  if (currentTab === 'respawns') {
+    loadRespawns();
+  }
   if (currentTab === 'logs' && isLive) {
     fetchLogs();
   }
-}, 2000);
+}, 3000);
 </script>
 </body>
 </html>
