@@ -239,6 +239,22 @@ def index():
     .card .label { color:#94a3b8; font-size:13px; margin-bottom:6px; font-weight:500; }
     .card .value { font-size:22px; font-weight:bold; color:#f8fafc; word-break:break-word; }
     
+    /* Data Source Badges (Transparency for Live vs Saved Data) */
+    .data-source-badge { display:inline-flex; align-items:center; gap:4px; font-size:10.5px; font-weight:600; padding:2px 8px; border-radius:9999px; text-transform:uppercase; letter-spacing:0.04em; margin-top:6px; cursor:help; }
+    .data-source-badge.saved { background:rgba(245,158,11,0.12); color:#f59e0b; border:1px solid rgba(245,158,11,0.3); }
+    .data-source-badge.live { background:rgba(34,197,94,0.12); color:#22c55e; border:1px solid rgba(34,197,94,0.3); }
+    
+    /* Day / Night Dial Widget */
+    .day-night-card { background:#111a2d; border:1px solid #1c283f; border-radius:14px; padding:20px; box-shadow:0 8px 24px rgba(0,0,0,0.3); margin-bottom:22px; }
+    .day-night-layout { display:flex; align-items:center; gap:26px; flex-wrap:wrap; }
+    .dial-svg-wrapper { width:120px; height:120px; flex-shrink:0; position:relative; }
+    .day-night-clock-svg { width:100%; height:100%; filter:drop-shadow(0 6px 16px rgba(0,0,0,0.6)); }
+    .dial-info { flex:1; min-width:240px; }
+    .dial-phase-title { font-size:20px; font-weight:bold; color:#f8fafc; display:flex; align-items:center; gap:8px; margin-bottom:4px; }
+    .dial-progress-bar-bg { width:100%; height:8px; background:#1a2538; border-radius:9999px; overflow:hidden; margin:10px 0 6px 0; }
+    .dial-progress-bar-fill { height:100%; background:linear-gradient(90deg, #f59e0b, #e65100); border-radius:9999px; transition:width 1s linear; }
+    .dial-meta-row { display:flex; justify-content:space-between; align-items:center; font-size:12.5px; color:#94a3b8; }
+    
     /* 2 Columns Grid for Overview Bottom */
     .overview-split { display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:22px; }
     .overview-split h2 { margin:0; font-size:18px; font-weight:bold; color:#fff; }
@@ -401,19 +417,139 @@ def index():
     <div id="view-overview">
       <!-- 8 Stat Cards -->
       <div class="grid">
-        <div class="card"><div class="icon">PL</div><div class="label">Players</div><div class="value" id="stat-players">0 / 6</div></div>
-        <div class="card"><div class="icon">DAY</div><div class="label">World Day</div><div class="value" id="stat-day" style="font-size:22px; color:#f59e0b;">Day --</div></div>
-        <div class="card"><div class="icon">WD</div><div class="label">World</div><div class="value" id="world" style="font-size:18px;">...</div></div>
-        <div class="card"><div class="icon">UP</div><div class="label">Uptime</div><div class="value" id="uptime">...</div></div>
+        <div class="card">
+          <div class="icon">PL</div>
+          <div class="label">Players</div>
+          <div class="value" id="stat-players">0 / 6</div>
+          <div><span class="data-source-badge live" title="Real-time telemetry streaming from server memory">⚡ Live</span></div>
+        </div>
+        <div class="card">
+          <div class="icon">DAY</div>
+          <div class="label">World Day</div>
+          <div class="value" id="stat-day" style="font-size:22px; color:#f59e0b;">Day --</div>
+          <div><span class="data-source-badge saved" id="badge-stat-day" title="Synchronized from latest world save snapshot">💾 Saved</span></div>
+        </div>
+        <div class="card">
+          <div class="icon">WD</div>
+          <div class="label">World</div>
+          <div class="value" id="world" style="font-size:18px;">...</div>
+          <div><span class="data-source-badge saved" id="badge-world" title="Active save slot name">💾 Saved</span></div>
+        </div>
+        <div class="card">
+          <div class="icon">UP</div>
+          <div class="label">Uptime</div>
+          <div class="value" id="uptime">...</div>
+          <div><span class="data-source-badge live" title="Container and server process execution duration">⚡ Live</span></div>
+        </div>
         <div class="card">
           <div class="icon">SV</div>
           <div class="label">Last Save</div>
           <div class="value" id="save">...</div>
-          <a onclick="setTab('backups')" style="color:#f59e0b; font-size:11px; cursor:pointer; text-decoration:underline; display:block; margin-top:4px;">Backups 💾</a>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px;">
+            <span class="data-source-badge saved" id="badge-save" title="Most recent world save timestamp">💾 Snapshot</span>
+            <a onclick="setTab('backups')" style="color:#f59e0b; font-size:11px; cursor:pointer; text-decoration:underline;">Backups 💾</a>
+          </div>
         </div>
-        <div class="card"><div class="icon">CPU</div><div class="label">CPU</div><div class="value" id="cpu">N/A</div></div>
-        <div class="card"><div class="icon">RAM</div><div class="label">RAM</div><div class="value" id="ram">N/A</div></div>
-        <div class="card"><div class="icon">VER</div><div class="label">Version</div><div class="value" id="version" style="font-size:18px;">...</div></div>
+        <div class="card">
+          <div class="icon">CPU</div>
+          <div class="label">CPU</div>
+          <div class="value" id="cpu">N/A</div>
+          <div><span class="data-source-badge live" title="Real-time CPU telemetry via docker cgroups">⚡ Live</span></div>
+        </div>
+        <div class="card">
+          <div class="icon">RAM</div>
+          <div class="label">RAM</div>
+          <div class="value" id="ram">N/A</div>
+          <div><span class="data-source-badge live" title="Real-time memory usage via docker cgroups">⚡ Live</span></div>
+        </div>
+        <div class="card">
+          <div class="icon">VER</div>
+          <div class="label">Version</div>
+          <div class="value" id="version" style="font-size:18px;">...</div>
+          <div><span class="data-source-badge live" title="Server engine build release">⚡ Process</span></div>
+        </div>
+      </div>
+
+      <!-- In-Game Day / Night Solar Clock Dial -->
+      <div class="day-night-card">
+        <div class="day-night-layout">
+          <div class="dial-svg-wrapper">
+            <svg viewBox="0 0 100 100" class="day-night-clock-svg" id="day-night-svg">
+              <!-- Outer metallic brass/gold bezel -->
+              <circle cx="50" cy="50" r="48" fill="#121824" stroke="#d4af37" stroke-width="2.5" />
+              
+              <!-- Right Semi-circle: Golden Sun Face (Daytime 0° - 180°) -->
+              <path d="M 50,4 A 46,46 0 0,1 50,96 Z" fill="#201a09" stroke="none" />
+              <!-- Radiating Sunburst Rays -->
+              <g stroke="#f59e0b" stroke-width="1.8" stroke-linecap="round" opacity="0.95">
+                <line x1="50" y1="50" x2="88" y2="40" />
+                <line x1="50" y1="50" x2="94" y2="50" stroke-width="2.4" stroke="#fbbf24" />
+                <line x1="50" y1="50" x2="88" y2="60" />
+                <line x1="50" y1="50" x2="80" y2="72" />
+                <line x1="50" y1="50" x2="68" y2="84" />
+                <line x1="50" y1="50" x2="80" y2="28" />
+                <line x1="50" y1="50" x2="68" y2="16" />
+              </g>
+              <path d="M 50,34 A 16,16 0 0,1 50,66 Z" fill="#f59e0b" />
+              <circle cx="50" cy="50" r="10" fill="#fbbf24" />
+
+              <!-- Top-Left Quadrant: Sky Blue with Silver Crescent Moon (Night 270° - 360°) -->
+              <path d="M 50,4 A 46,46 0 0,0 4,50 L 50,50 Z" fill="#6488ad" />
+              <path d="M 31,19 A 13,13 0 0,0 43,39 A 11,11 0 0,1 31,19 Z" fill="#f1f5f9" />
+
+              <!-- Bottom-Left Quadrant: Twilight / Dawn (180° - 270°) -->
+              <path d="M 4,50 A 46,46 0 0,0 50,96 L 50,50 Z" fill="#2d333f" />
+              <!-- Dimmed subtle twilight rays -->
+              <g stroke="#64748b" stroke-width="1.5" stroke-linecap="round" opacity="0.6">
+                <line x1="50" y1="50" x2="16" y2="62" />
+                <line x1="50" y1="50" x2="26" y2="76" />
+                <line x1="50" y1="50" x2="38" y2="88" />
+              </g>
+
+              <!-- Inner border ring & quadrant lines -->
+              <circle cx="50" cy="50" r="46" fill="none" stroke="#d4af37" stroke-width="0.8" opacity="0.5" />
+              <line x1="50" y1="4" x2="50" y2="96" stroke="#d4af37" stroke-width="0.6" opacity="0.4" />
+              <line x1="4" y1="50" x2="50" y2="50" stroke="#d4af37" stroke-width="0.6" opacity="0.4" />
+
+              <!-- Needle Pointer Hand (rotates smoothly around center 50,50) -->
+              <g id="dial-needle-group" style="transform-origin:50px 50px; transform:rotate(180deg); transition:transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);">
+                <path d="M 48.2,50 L 49.3,91 L 50,95 L 50.7,91 L 51.8,50 Z" fill="#facc15" stroke="#78350f" stroke-width="0.7" />
+                <circle cx="50" cy="50" r="5" fill="#facc15" stroke="#78350f" stroke-width="1.4" />
+                <circle cx="50" cy="50" r="2" fill="#0f172a" />
+              </g>
+            </svg>
+          </div>
+
+          <div class="dial-info">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:8px;">
+              <div>
+                <div class="dial-phase-title">
+                  <span id="dial-phase-icon">☀️</span>
+                  <span id="dial-phase-label">Day Cycle Initializing...</span>
+                </div>
+                <div style="font-size:13px; color:#94a3b8;">
+                  In-game solar clock tracking real-time day/night progression and active celestial phase
+                </div>
+              </div>
+              <div>
+                <span class="data-source-badge saved" id="badge-dial-source" title="Synchronized from latest world save file (updated every ~5m)">
+                  💾 Saved Data (as of --)
+                </span>
+              </div>
+            </div>
+
+            <div class="dial-progress-bar-bg">
+              <div class="dial-progress-bar-fill" id="dial-progress-bar" style="width:0%;"></div>
+            </div>
+
+            <div class="dial-meta-row">
+              <div>
+                <span style="color:#f8fafc; font-weight:600;" id="dial-progress-text">0%</span> of day completed
+              </div>
+              <div id="dial-time-countdown">--m --s elapsed in day</div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Regional Weather Section -->
@@ -425,8 +561,11 @@ def index():
             </h2>
             <div style="font-size:12.5px; color:#94a3b8; margin-top:2px;">Real-time climate conditions and remaining storm durations across all biomes</div>
           </div>
-          <div style="font-size:12px; color:#f59e0b; background:#1c2438; padding:4px 10px; border-radius:6px; font-weight:600;" id="weather-day-badge">
-            Day --
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span class="data-source-badge saved" id="badge-weather-source" title="Extracted from world save snapshot">💾 Saved Data</span>
+            <div style="font-size:12px; color:#f59e0b; background:#1c2438; padding:4px 10px; border-radius:6px; font-weight:600;" id="weather-day-badge">
+              Day --
+            </div>
           </div>
         </div>
         <div id="weather-grid" style="display:grid; grid-template-columns:repeat(4, minmax(180px, 1fr)); gap:14px;">
@@ -762,6 +901,32 @@ async function loadStatus() {
       label.innerText = 'Server Offline';
     }
 
+    // Update transparency data source badges with last save timestamp
+    const saveTimeText = s.last_save || 'recently';
+    const badgeStatDay = document.getElementById('badge-stat-day');
+    if (badgeStatDay) {
+      badgeStatDay.innerText = `💾 Saved (${saveTimeText})`;
+      badgeStatDay.title = `Extracted from world save snapshot (${saveTimeText})`;
+    }
+    const badgeWorld = document.getElementById('badge-world');
+    if (badgeWorld) {
+      badgeWorld.innerText = `💾 Saved (${saveTimeText})`;
+      badgeWorld.title = `Active save slot from disk snapshot (${saveTimeText})`;
+    }
+    const badgeDialSource = document.getElementById('badge-dial-source');
+    if (badgeDialSource) {
+      badgeDialSource.innerText = `💾 Saved (${saveTimeText})`;
+      badgeDialSource.title = `Time progression synchronized from save snapshot (${saveTimeText})`;
+    }
+    const badgeWeatherSource = document.getElementById('badge-weather-source');
+    if (badgeWeatherSource) {
+      badgeWeatherSource.innerText = `💾 Saved (${saveTimeText})`;
+      badgeWeatherSource.title = `Climate forecast extracted from world save (${saveTimeText})`;
+    }
+
+    // Render In-Game Day/Night Solar Dial
+    renderDayNightDial(s.day_cycle, s.day_count, s.last_save);
+
     // Weather forecast
     renderWeather(s.weather);
 
@@ -799,6 +964,44 @@ async function loadStatus() {
 
   } catch (err) {
     console.error('Status fetch error:', err);
+  }
+}
+
+function renderDayNightDial(cycle, dayCount, lastSave) {
+  if (!cycle) return;
+  const needleGroup = document.getElementById('dial-needle-group');
+  const phaseIcon = document.getElementById('dial-phase-icon');
+  const phaseLabel = document.getElementById('dial-phase-label');
+  const progressBar = document.getElementById('dial-progress-bar');
+  const progressText = document.getElementById('dial-progress-text');
+  const timeCountdown = document.getElementById('dial-time-countdown');
+
+  // Needle angle rotation (0 to 360 deg)
+  const angle = typeof cycle.needle_angle_deg === 'number' ? cycle.needle_angle_deg : 180;
+  if (needleGroup) {
+    needleGroup.style.transform = `rotate(${angle}deg)`;
+  }
+
+  // Phase Title & Icon
+  const dayStr = dayCount ? `Day ${dayCount}` : (cycle.day_count ? `Day ${cycle.day_count}` : 'Day --');
+  if (phaseIcon) phaseIcon.innerText = cycle.phase_icon || '☀️';
+  if (phaseLabel) phaseLabel.innerText = `${cycle.phase || 'Daytime'} (${dayStr})`;
+
+  // Progress Bar & Percentage
+  const pct = Math.min(100, Math.max(0, cycle.progress_percent || 0));
+  if (progressBar) progressBar.style.width = `${pct}%`;
+  if (progressText) progressText.innerText = `${pct}%`;
+
+  // Elapsed Seconds in Day
+  if (timeCountdown) {
+    const elapsedSec = Math.floor(cycle.seconds_in_day || 0);
+    const totalSec = cycle.cycle_duration_seconds || 840;
+    const m = Math.floor(elapsedSec / 60);
+    const s = elapsedSec % 60;
+    const totM = Math.floor(totalSec / 60);
+    const totS = totalSec % 60;
+    const pad = (n) => n < 10 ? '0' + n : n;
+    timeCountdown.innerText = `${m}m ${pad(s)}s / ${totM}m ${pad(totS)}s in day cycle`;
   }
 }
 

@@ -147,21 +147,22 @@ def get_state():
         char_names_copy = dict(_character_names)
 
     # Outside the lock to prevent disk I/O from blocking companion threads
-    if not day_count or not weather:
-        try:
-            wdata = get_world_data()
-            if wdata.get("day_count"):
-                day_count = wdata["day_count"]
-            if wdata.get("weather"):
-                weather = wdata["weather"]
-            with _lock:
-                state["day_count"] = day_count
-                state["weather"] = weather
-                if wdata.get("active_save") and state["world"] in ["Unknown", ""]:
-                    state["world"] = wdata["active_save"].replace(".sav", "")
-                    world_val = state["world"]
-        except Exception:
-            pass
+    day_cycle = None
+    try:
+        wdata = get_world_data()
+        day_cycle = wdata.get("day_cycle")
+        if wdata.get("day_count") and not day_count:
+            day_count = wdata["day_count"]
+        if wdata.get("weather") and not weather:
+            weather = wdata["weather"]
+        with _lock:
+            state["day_count"] = day_count
+            state["weather"] = weather
+            if wdata.get("active_save") and state["world"] in ["Unknown", ""]:
+                state["world"] = wdata["active_save"].replace(".sav", "")
+                world_val = state["world"]
+    except Exception:
+        pass
 
     try:
         full_roster = get_roster(players)
@@ -183,6 +184,7 @@ def get_state():
         "uptime": uptime_val,
         "last_save": last_save_val,
         "day_count": day_count,
+        "day_cycle": day_cycle,
         "weather": weather,
         "roster": full_roster,
         "character_names": char_names_copy,

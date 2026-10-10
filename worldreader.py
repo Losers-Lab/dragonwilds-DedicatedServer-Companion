@@ -195,6 +195,61 @@ def scan_all_saves_for_steam_ids():
         pass
 
 
+DAY_CYCLE_LENGTH_SECONDS = 840.0  # ~14 minutes default day/night cycle in Dragonwilds
+
+
+def calculate_day_cycle(day_count: int, save_mtime: float = 0.0) -> dict:
+    """Calculates smooth in-game day/night cycle progression, angle, and phase."""
+    if not day_count:
+        return {
+            "day_count": 0,
+            "progress_percent": 0.0,
+            "phase": "Unknown",
+            "phase_icon": "☀️",
+            "needle_angle_deg": 0.0,
+            "seconds_in_day": 0.0,
+            "cycle_duration_seconds": int(DAY_CYCLE_LENGTH_SECONDS),
+            "is_night": False
+        }
+
+    now = time.time()
+    elapsed = max(0.0, now - save_mtime) if save_mtime > 0 else 0.0
+    cycle_pos = (elapsed % DAY_CYCLE_LENGTH_SECONDS) / DAY_CYCLE_LENGTH_SECONDS
+    angle_deg = (cycle_pos * 360.0) % 360.0
+
+    if 0 <= angle_deg < 45:
+        phase = "Morning"
+        icon = "🌅"
+        is_night = False
+    elif 45 <= angle_deg < 135:
+        phase = "Midday"
+        icon = "☀️"
+        is_night = False
+    elif 135 <= angle_deg < 180:
+        phase = "Afternoon"
+        icon = "🌤️"
+        is_night = False
+    elif 180 <= angle_deg < 270:
+        phase = "Dusk / Twilight"
+        icon = "🌇"
+        is_night = True
+    else:
+        phase = "Night"
+        icon = "🌙"
+        is_night = True
+
+    return {
+        "day_count": day_count,
+        "progress_percent": round(cycle_pos * 100.0, 1),
+        "phase": phase,
+        "phase_icon": icon,
+        "needle_angle_deg": round(angle_deg, 1),
+        "seconds_in_day": round(elapsed % DAY_CYCLE_LENGTH_SECONDS, 1),
+        "cycle_duration_seconds": int(DAY_CYCLE_LENGTH_SECONDS),
+        "is_night": is_night
+    }
+
+
 def get_world_data():
     global _cache, _known_steam_map
     save_path = find_newest_save()
@@ -206,9 +261,12 @@ def get_world_data():
     except Exception:
         return _cache["data"]
 
-    # Return cached data if save has not been updated
+    # Return cached data if save has not been updated, but recalculate dynamic day cycle
     if _cache["path"] == save_path and _cache["mtime"] == mtime:
-        return _cache["data"]
+        cached_data = dict(_cache["data"])
+        if cached_data.get("day_count"):
+            cached_data["day_cycle"] = calculate_day_cycle(cached_data["day_count"], mtime)
+        return cached_data
 
     day_count = 0
     weather_list = []
@@ -271,9 +329,11 @@ def get_world_data():
 
     parsed = {
         "day_count": day_count,
+        "day_cycle": calculate_day_cycle(day_count, mtime),
         "weather": weather_list,
         "steam_map": dict(_known_steam_map),
-        "active_save": os.path.basename(save_path)
+        "active_save": os.path.basename(save_path),
+        "save_mtime": mtime
     }
 
     _cache["path"] = save_path
