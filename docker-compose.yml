@@ -1,0 +1,23 @@
+services:
+  dragonwilds-companion:
+    build: .
+    container_name: dragonwilds-companion
+    restart: unless-stopped
+    ports:
+      - "9876:9876"
+    volumes:
+      # Mount Dragonwilds server saves and logs from C:\DragonwildsServer
+      - "C:/DragonwildsServer/RSDragonwilds/Saved/SaveGames:/savegames:ro"
+      - "C:/DragonwildsServer/RSDragonwilds/Saved/Logs:/logs:ro"
+    environment:
+      SAVE_PATH: /savegames
+      LOG_PATH: /logs/RSDragonwilds.log
+      MAX_PLAYERS: 6
+      SERVER_NAME: Dragonwilds
+      PORT: 9876
+      # Database connection (optional, uncomment if using MySQL)
+      # MYSQL_HOST: host.docker.internal
+      # MYSQL_PORT: 3306
+      # MYSQL_DATABASE: dragonwilds_companion
+      # MYSQL_USER: root
+      # MYSQL_PASSWORD: password
