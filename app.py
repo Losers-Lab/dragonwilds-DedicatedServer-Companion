@@ -475,44 +475,64 @@ def index():
         <div class="day-night-layout">
           <div class="dial-svg-wrapper">
             <svg viewBox="0 0 100 100" class="day-night-clock-svg" id="day-night-svg">
+              <defs>
+                <!-- Clip path for the full 240° daytime arc (from 210° around to 90°) -->
+                <!-- We clip the golden glowing sun artwork to the daytime passed sector (from 210° up to current needle angle) -->
+                <clipPath id="clip-day-passed">
+                  <path id="path-day-passed" d="M 50,50 Z" />
+                </clipPath>
+              </defs>
+
               <!-- Outer metallic brass/gold bezel -->
-              <circle cx="50" cy="50" r="48" fill="#121824" stroke="#d4af37" stroke-width="2.5" />
-              
-              <!-- Right Semi-circle: Golden Sun Face (Daytime 0° - 180°) -->
-              <path d="M 50,4 A 46,46 0 0,1 50,96 Z" fill="#201a09" stroke="none" />
-              <!-- Radiating Sunburst Rays -->
-              <g stroke="#f59e0b" stroke-width="1.8" stroke-linecap="round" opacity="0.95">
-                <line x1="50" y1="50" x2="88" y2="40" />
-                <line x1="50" y1="50" x2="94" y2="50" stroke-width="2.4" stroke="#fbbf24" />
-                <line x1="50" y1="50" x2="88" y2="60" />
-                <line x1="50" y1="50" x2="80" y2="72" />
-                <line x1="50" y1="50" x2="68" y2="84" />
-                <line x1="50" y1="50" x2="80" y2="28" />
-                <line x1="50" y1="50" x2="68" y2="16" />
-              </g>
-              <path d="M 50,34 A 16,16 0 0,1 50,66 Z" fill="#f59e0b" />
-              <circle cx="50" cy="50" r="10" fill="#fbbf24" />
+              <circle cx="50" cy="50" r="48" fill="#0f172a" stroke="#d4af37" stroke-width="2.2" />
 
-              <!-- Top-Left Quadrant: Sky Blue with Silver Crescent Moon (Night 270° - 360°) -->
-              <path d="M 50,4 A 46,46 0 0,0 4,50 L 50,50 Z" fill="#6488ad" />
-              <path d="M 31,19 A 13,13 0 0,0 43,39 A 11,11 0 0,1 31,19 Z" fill="#f1f5f9" />
+              <!-- 1. NIGHT TIME SECTION (Permanent dark periwinkle / slate blue with crescent moon) -->
+              <!-- Sits from 90° (3 o'clock) clockwise to 210° (approx 7 o'clock, 120° night arc) -->
+              <path d="M 50,50 L 96,50 A 46,46 0 0,1 27,89.84 Z" fill="#6488ad" />
+              <!-- Crescent Moon Artwork in Night Sector -->
+              <path d="M 64,68 A 12,12 0 0,0 72,84 A 10,10 0 0,1 64,68 Z" fill="#f1f5f9" opacity="0.9" />
 
-              <!-- Bottom-Left Quadrant: Twilight / Dawn (180° - 270°) -->
-              <path d="M 4,50 A 46,46 0 0,0 50,96 L 50,50 Z" fill="#2d333f" />
-              <!-- Dimmed subtle twilight rays -->
-              <g stroke="#64748b" stroke-width="1.5" stroke-linecap="round" opacity="0.6">
-                <line x1="50" y1="50" x2="16" y2="62" />
+              <!-- 2. DAYTIME REMAINING SECTION (Grayed out / Dim muted background for the 240° day arc) -->
+              <path d="M 50,50 L 27,89.84 A 46,46 0 1,1 96,50 Z" fill="#2d333f" />
+              <!-- Grayed out sunburst rays (future day) -->
+              <g stroke="#64748b" stroke-width="1.6" stroke-linecap="round" opacity="0.4">
                 <line x1="50" y1="50" x2="26" y2="76" />
-                <line x1="50" y1="50" x2="38" y2="88" />
+                <line x1="50" y1="50" x2="16" y2="60" />
+                <line x1="50" y1="50" x2="14" y2="42" />
+                <line x1="50" y1="50" x2="20" y2="24" />
+                <line x1="50" y1="50" x2="34" y2="12" />
+                <line x1="50" y1="50" x2="50" y2="6" />
+                <line x1="50" y1="50" x2="66" y2="12" />
+                <line x1="50" y1="50" x2="80" y2="24" />
+                <line x1="50" y1="50" x2="88" y2="38" />
               </g>
 
-              <!-- Inner border ring & quadrant lines -->
-              <circle cx="50" cy="50" r="46" fill="none" stroke="#d4af37" stroke-width="0.8" opacity="0.5" />
-              <line x1="50" y1="4" x2="50" y2="96" stroke="#d4af37" stroke-width="0.6" opacity="0.4" />
-              <line x1="4" y1="50" x2="50" y2="50" stroke="#d4af37" stroke-width="0.6" opacity="0.4" />
+              <!-- 3. DAYTIME PASSED SECTION (Vibrant golden illuminated sunburst, revealed dynamically up to needle) -->
+              <g id="day-passed-group" clip-path="url(#clip-day-passed)">
+                <path d="M 50,50 L 27,89.84 A 46,46 0 1,1 96,50 Z" fill="#201a09" />
+                <!-- Vibrant Gold Radiating Sunburst Rays -->
+                <g stroke="#f59e0b" stroke-width="1.8" stroke-linecap="round" opacity="0.95">
+                  <line x1="50" y1="50" x2="26" y2="76" />
+                  <line x1="50" y1="50" x2="16" y2="60" />
+                  <line x1="50" y1="50" x2="14" y2="42" />
+                  <line x1="50" y1="50" x2="20" y2="24" />
+                  <line x1="50" y1="50" x2="34" y2="12" />
+                  <line x1="50" y1="50" x2="50" y2="6" stroke-width="2.2" stroke="#fbbf24" />
+                  <line x1="50" y1="50" x2="66" y2="12" />
+                  <line x1="50" y1="50" x2="80" y2="24" />
+                  <line x1="50" y1="50" x2="88" y2="38" />
+                </g>
+                <circle cx="50" cy="50" r="14" fill="#f59e0b" />
+                <circle cx="50" cy="50" r="8" fill="#fbbf24" />
+              </g>
 
-              <!-- Needle Pointer Hand (rotates smoothly around center 50,50, starts pointing up at 12 o'clock) -->
-              <g id="dial-needle-group" style="transform-origin:50px 50px; transform:rotate(0deg); transition:transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);">
+              <!-- Inner border ring & divider spokes -->
+              <circle cx="50" cy="50" r="46" fill="none" stroke="#d4af37" stroke-width="0.8" opacity="0.5" />
+              <line x1="50" y1="50" x2="27" y2="89.84" stroke="#d4af37" stroke-width="1.2" opacity="0.7" />
+              <line x1="50" y1="50" x2="96" y2="50" stroke="#d4af37" stroke-width="1.2" opacity="0.7" />
+
+              <!-- Needle Pointer Hand (authentically anchored at 50,50, pointing up at 12 o'clock / 0°, rotates clockwise) -->
+              <g id="dial-needle-group" style="transform-origin:50px 50px; transform:rotate(210deg); transition:transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);">
                 <path d="M 48.2,50 L 49.3,9 L 50,5 L 50.7,9 L 51.8,50 Z" fill="#facc15" stroke="#78350f" stroke-width="0.7" />
                 <circle cx="50" cy="50" r="5" fill="#facc15" stroke="#78350f" stroke-width="1.4" />
                 <circle cx="50" cy="50" r="2" fill="#0f172a" />
@@ -980,6 +1000,38 @@ function renderDayNightDial(cycle, dayCount, lastSave) {
   const angle = typeof cycle.needle_angle_deg === 'number' ? cycle.needle_angle_deg : 180;
   if (needleGroup) {
     needleGroup.style.transform = `rotate(${angle}deg)`;
+  }
+
+  // Dynamic Day-Passed SVG Clipping Arc
+  // Day starts at 210° (approx 7 o'clock) and sweeps clockwise through 270°, 0°, to 90° (3 o'clock)
+  const clipPathEl = document.getElementById('path-day-passed');
+  if (clipPathEl) {
+    const cx = 50, cy = 50, r = 46;
+    const startDeg = 210.0;
+    const startRad = (startDeg - 90) * Math.PI / 180;
+    const x0 = cx + r * Math.cos(startRad);
+    const y0 = cy + r * Math.sin(startRad);
+
+    // Current needle clamped to day arc
+    let curDeg = angle;
+    // Calculate angular distance clockwise from 210°
+    let delta = (curDeg - startDeg + 360) % 360;
+    // Day arc length is 240° (from 210° to 90°)
+    if (delta > 240) {
+      // It's night time: the entire daytime portion has passed!
+      delta = 240;
+    }
+
+    if (delta <= 0.5) {
+      clipPathEl.setAttribute('d', 'M 50,50 Z');
+    } else {
+      const endDeg = (startDeg + delta) % 360;
+      const endRad = (endDeg - 90) * Math.PI / 180;
+      const x1 = cx + r * Math.cos(endRad);
+      const y1 = cy + r * Math.sin(endRad);
+      const largeArc = delta > 180 ? 1 : 0;
+      clipPathEl.setAttribute('d', `M ${cx},${cy} L ${x0.toFixed(2)},${y0.toFixed(2)} A ${r},${r} 0 ${largeArc},1 ${x1.toFixed(2)},${y1.toFixed(2)} Z`);
+    }
   }
 
   // Phase Title & Icon
