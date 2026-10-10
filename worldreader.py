@@ -25,11 +25,78 @@ _save_scan_cache = {
 }
 
 WEATHER_NAME_MAP = {
-    "base": "Central",
+    "base": "Central Ashenfall (Overworld)",
     "dowdun": "Dowdun Reach",
     "sands": "Umbral Sands",
     "Scorned Wilderness": "Scorned Wilderness"
 }
+
+WEATHER_ICON_MAP = {
+    "Sunny": "☀️",
+    "Cloudy": "⛅",
+    "Rain Storm": "⛈️",
+    "Rain": "🌧️",
+    "Fog": "🌫️",
+    "Snow": "❄️"
+}
+
+# 30+ canonical world map regions discovered from game binary (ST_UI_MapRegions)
+CANONICAL_MAP_REGIONS = [
+    {"id": "MapRegionAlcarridOasis", "name": "Al Kharid Oasis", "biome": "Desert"},
+    {"id": "MapRegionApproach", "name": "The Approach", "biome": "Plains"},
+    {"id": "MapRegionBastion", "name": "The Bastion", "biome": "Fortress"},
+    {"id": "MapRegionBleakfields", "name": "Bleakfields", "biome": "Wasteland"},
+    {"id": "MapRegionBloodblight", "name": "Bloodblight Swamp", "biome": "Swamp"},
+    {"id": "MapRegionBramblemead", "name": "Bramblemead", "biome": "Meadow"},
+    {"id": "MapRegionCathedral", "name": "Cathedral Ruins", "biome": "Sanctuary"},
+    {"id": "MapRegionCoalridge", "name": "Coalridge", "biome": "Highlands"},
+    {"id": "MapRegionCourtyard", "name": "Ancient Courtyard", "biome": "Ruins"},
+    {"id": "MapRegionCrypt", "name": "Ashen Crypts", "biome": "Subterranean"},
+    {"id": "MapRegionDemonGate", "name": "Demon Gate", "biome": "Volcanic"},
+    {"id": "MapRegionDragonsRun", "name": "Dragon's Run", "biome": "Mountains"},
+    {"id": "MapRegionDunesOfUzzer", "name": "Dunes of Uzer", "biome": "Desert"},
+    {"id": "MapRegionEmberwood", "name": "Emberwood", "biome": "Forest"},
+    {"id": "MapRegionFracturedPlains", "name": "Fractured Plains", "biome": "Plains"},
+    {"id": "MapRegionGarrison", "name": "Imperial Garrison", "biome": "Fortress"},
+    {"id": "MapRegionGrandHall", "name": "Grand Hall", "biome": "Ruins"},
+    {"id": "MapRegionHopesFall", "name": "Hope's Fall", "biome": "Highlands"},
+    {"id": "MapRegionLake", "name": "Mirror Lake", "biome": "Lake"},
+    {"id": "MapRegionLakeOfLostSouls", "name": "Lake of Lost Souls", "biome": "Mystic"},
+    {"id": "MapRegionLibrary", "name": "Forgotten Library", "biome": "Sanctuary"},
+    {"id": "MapRegionManafemPlains", "name": "Manafem Plains", "biome": "Plains"},
+    {"id": "MapRegionMenagerie", "name": "Royal Menagerie", "biome": "Ruins"},
+    {"id": "MapRegionNexus", "name": "The Nexus", "biome": "Arcane"},
+    {"id": "MapRegionPastures", "name": "Ashenfall Pastures", "biome": "Plains"},
+    {"id": "MapRegionSilverthorn", "name": "Silverthorn Woods", "biome": "Forest"},
+    {"id": "MapRegionHighlands", "name": "Dowdun Highlands", "biome": "Highlands"},
+    {"id": "MapRegionTempleWoods", "name": "Temple Woods", "biome": "Forest"},
+    {"id": "MapRegionTheBurningSpire", "name": "The Burning Spire", "biome": "Volcanic"},
+    {"id": "MapRegionWhisperingSwamp", "name": "Whispering Swamp", "biome": "Swamp"},
+    {"id": "MapRegionWItchWillow", "name": "Witch Willow Mire", "biome": "Swamp"}
+]
+
+
+def format_region_name(raw_name: str) -> str:
+    """Format raw weather/world region identifiers into human-readable labels."""
+    if not raw_name:
+        return "Unknown Region"
+    if raw_name in WEATHER_NAME_MAP:
+        return WEATHER_NAME_MAP[raw_name]
+    
+    # Strip MapRegion prefix if present
+    name = raw_name
+    if name.startswith("MapRegion"):
+        name = name[9:]
+    
+    # Space out CamelCase (e.g. WhisperingSwamp -> Whispering Swamp)
+    name = re.sub(r'([a-z])([A-Z])', r'\1 \2', name)
+    name = re.sub(r'([A-Z]+)([A-Z][a-z])', r'\1 \2', name)
+    return name.replace('_', ' ').strip().title()
+
+
+def get_canonical_regions():
+    """Return all canonical map regions in the game."""
+    return list(CANONICAL_MAP_REGIONS)
 
 WEATHER_ICON_MAP = {
     "Sunny": "☀️",
@@ -166,7 +233,7 @@ def get_world_data():
                         if not day_count:
                             day_count = dc
 
-                        region_label = WEATHER_NAME_MAP.get(raw_name, raw_name)
+                        region_label = format_region_name(raw_name)
                         icon = WEATHER_ICON_MAP.get(raw_type, "🌤️")
 
                         weather_list.append({
