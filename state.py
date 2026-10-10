@@ -7,7 +7,7 @@ _lock = Lock()
 
 state = {
     "status": "online",
-    "server": "Dragonwilds",
+    "server": config.SERVER_NAME,
     "world": "Unknown",
     "version": "Unknown",
     "players": {},
@@ -20,28 +20,41 @@ state = {
 }
 
 
-def add_event(message):
+def add_event(message, category=None):
+    if not category:
+        msg_lower = message.lower()
+        if "joined" in msg_lower or "left" in msg_lower:
+            category = "user"
+        elif any(k in msg_lower for k in ["dragon", "boss", "wave", "monster", "combat"]):
+            category = "dragon"
+        else:
+            category = "server"
+
     with _lock:
         state["events"].insert(0, {
             "timestamp": datetime.now().strftime("%H:%M:%S"),
+            "full_time": datetime.now().strftime("%m/%d/%Y %I:%M:%S %p"),
+            "category": category,
             "message": message
         })
-        state["events"] = state["events"][:25]
+        state["events"] = state["events"][:100]
         state["updated"] = int(time.time())
 
 
-def set_player(account, name):
+def set_player(account, name, notify=True):
     with _lock:
         state["players"][account] = name
         state["updated"] = int(time.time())
-    add_event(f"{name} joined")
+    if notify:
+        add_event(f"{name} joined")
 
 
-def remove_player(account, name=None):
+def remove_player(account, name=None, notify=True):
     with _lock:
         old_name = state["players"].pop(account, None)
         state["updated"] = int(time.time())
-    add_event(f"{name or old_name or account} left")
+    if notify:
+        add_event(f"{name or old_name or account} left")
 
 
 def clear_players():
