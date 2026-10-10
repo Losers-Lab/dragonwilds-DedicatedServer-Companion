@@ -479,7 +479,7 @@ def index():
                 <!-- Clip path for the full 240° daytime arc (from 210° around to 90°) -->
                 <!-- We clip the golden glowing sun artwork to the daytime passed sector (from 210° up to current needle angle) -->
                 <clipPath id="clip-day-passed">
-                  <path id="path-day-passed" d="M 50,50 L 10,73 A 46,46 0 0,1 50,96 Z" />
+                  <path id="path-day-passed" d="M 50,50 Z" />
                 </clipPath>
               </defs>
 
@@ -488,12 +488,12 @@ def index():
 
               <!-- 1. NIGHT TIME SECTION (Permanent dark periwinkle / slate blue with crescent moon) -->
               <!-- Sits from 90° (3 o'clock) clockwise to 210° (approx 7 o'clock, 120° night arc) -->
-              <path d="M 50,50 L 96,50 A 46,46 0 0,1 10,73 Z" fill="#6488ad" />
+              <path d="M 50,50 L 96,50 A 46,46 0 0,1 27,89.84 Z" fill="#6488ad" />
               <!-- Crescent Moon Artwork in Night Sector -->
               <path d="M 64,68 A 12,12 0 0,0 72,84 A 10,10 0 0,1 64,68 Z" fill="#f1f5f9" opacity="0.9" />
 
               <!-- 2. DAYTIME REMAINING SECTION (Grayed out / Dim muted background for the 240° day arc) -->
-              <path d="M 50,50 L 10,73 A 46,46 0 0,1 96,50 Z" fill="#2d333f" />
+              <path d="M 50,50 L 27,89.84 A 46,46 0 1,1 96,50 Z" fill="#2d333f" />
               <!-- Grayed out sunburst rays (future day) -->
               <g stroke="#64748b" stroke-width="1.6" stroke-linecap="round" opacity="0.4">
                 <line x1="50" y1="50" x2="26" y2="76" />
@@ -509,7 +509,7 @@ def index():
 
               <!-- 3. DAYTIME PASSED SECTION (Vibrant golden illuminated sunburst, revealed dynamically up to needle) -->
               <g id="day-passed-group" clip-path="url(#clip-day-passed)">
-                <path d="M 50,50 L 10,73 A 46,46 0 0,1 96,50 Z" fill="#201a09" />
+                <path d="M 50,50 L 27,89.84 A 46,46 0 1,1 96,50 Z" fill="#201a09" />
                 <!-- Vibrant Gold Radiating Sunburst Rays -->
                 <g stroke="#f59e0b" stroke-width="1.8" stroke-linecap="round" opacity="0.95">
                   <line x1="50" y1="50" x2="26" y2="76" />
@@ -528,12 +528,12 @@ def index():
 
               <!-- Inner border ring & divider spokes -->
               <circle cx="50" cy="50" r="46" fill="none" stroke="#d4af37" stroke-width="0.8" opacity="0.5" />
-              <line x1="50" y1="50" x2="10" y2="73" stroke="#d4af37" stroke-width="1.2" opacity="0.7" />
+              <line x1="50" y1="50" x2="27" y2="89.84" stroke="#d4af37" stroke-width="1.2" opacity="0.7" />
               <line x1="50" y1="50" x2="96" y2="50" stroke="#d4af37" stroke-width="1.2" opacity="0.7" />
 
-              <!-- Needle Pointer Hand (authentically anchored at 50,50, points to 6 o'clock at 180°, rotates clockwise) -->
-              <g id="dial-needle-group" style="transform-origin:50px 50px; transform:rotate(180deg); transition:transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);">
-                <path d="M 48.2,50 L 49.3,91 L 50,95 L 50.7,91 L 51.8,50 Z" fill="#facc15" stroke="#78350f" stroke-width="0.7" />
+              <!-- Needle Pointer Hand (authentically anchored at 50,50, pointing up at 12 o'clock / 0°, rotates clockwise) -->
+              <g id="dial-needle-group" style="transform-origin:50px 50px; transform:rotate(210deg); transition:transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);">
+                <path d="M 48.2,50 L 49.3,9 L 50,5 L 50.7,9 L 51.8,50 Z" fill="#facc15" stroke="#78350f" stroke-width="0.7" />
                 <circle cx="50" cy="50" r="5" fill="#facc15" stroke="#78350f" stroke-width="1.4" />
                 <circle cx="50" cy="50" r="2" fill="#0f172a" />
               </g>
