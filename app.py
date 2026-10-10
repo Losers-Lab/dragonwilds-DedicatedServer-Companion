@@ -53,6 +53,12 @@ def api_weather():
     })
 
 
+@app.route("/api/world/regions")
+def api_world_regions():
+    from worldreader import get_canonical_regions
+    return jsonify(get_canonical_regions())
+
+
 @app.route("/api/roster")
 def api_roster():
     st = get_state()

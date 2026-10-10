@@ -58,12 +58,12 @@ Returns world day count and active regional weather forecasts.
 **Response Example:**
 ```json
 {
-  "day_count": 34,
+  "day_count": 35,
   "weather": [
     {
       "icon": "☀️",
       "raw_region": "base",
-      "region": "Central",
+      "region": "Central Ashenfall (Overworld)",
       "remaining_seconds": 2490.5,
       "remaining_text": "41m left",
       "type": "Sunny"
@@ -78,6 +78,30 @@ Returns world day count and active regional weather forecasts.
     }
   ]
 }
+```
+
+### `GET /api/world/regions`
+Returns the 30+ canonical world map regions and biomes discovered from the game binary (`ST_UI_MapRegions`).
+
+**Response Example:**
+```json
+[
+  {
+    "id": "MapRegionAlcarridOasis",
+    "name": "Al Kharid Oasis",
+    "biome": "Desert"
+  },
+  {
+    "id": "MapRegionApproach",
+    "name": "The Approach",
+    "biome": "Plains"
+  },
+  {
+    "id": "MapRegionWhisperingSwamp",
+    "name": "Whispering Swamp",
+    "biome": "Swamp"
+  }
+]
 ```
 
 ---
