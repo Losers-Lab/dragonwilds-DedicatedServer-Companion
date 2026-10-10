@@ -5,6 +5,8 @@ SAVE_PATH = os.getenv(
     "SAVE_PATH",
     "/savegames" if os.path.exists("/savegames") else r"C:\DragonwildsServer\RSDragonwilds\Saved\SaveGames"
 )
+SAVES_DIR = SAVE_PATH
+
 LOG_PATH = os.getenv(
     "LOG_PATH",
     "/logs/RSDragonwilds.log" if os.path.exists("/logs/RSDragonwilds.log") else (
@@ -13,6 +15,7 @@ LOG_PATH = os.getenv(
         else ""
     )
 )
+LOGS_DIR = os.path.dirname(LOG_PATH) if LOG_PATH else ("/logs" if os.path.exists("/logs") else r"C:\DragonwildsServer\RSDragonwilds\Saved\Logs")
 MAX_PLAYERS = int(os.getenv("MAX_PLAYERS", "6"))
 PORT = int(os.getenv("PORT", "9876"))
 SERVER_NAME = os.getenv("SERVER_NAME", "Dragonwilds")
