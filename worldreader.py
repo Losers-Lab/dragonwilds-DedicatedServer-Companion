@@ -76,36 +76,47 @@ CANONICAL_MAP_REGIONS = [
 ]
 
 
+CANONICAL_REGION_LOOKUP = {r["id"]: r["name"] for r in CANONICAL_MAP_REGIONS}
+
+
 def format_region_name(raw_name: str) -> str:
     """Format raw weather/world region identifiers into human-readable labels."""
-    if not raw_name:
+    if not raw_name or not isinstance(raw_name, str):
         return "Unknown Region"
-    if raw_name in WEATHER_NAME_MAP:
-        return WEATHER_NAME_MAP[raw_name]
     
-    # Strip MapRegion prefix if present
-    name = raw_name
-    if name.startswith("MapRegion"):
-        name = name[9:]
+    raw_name_clean = raw_name.strip()
+    if not raw_name_clean:
+        return "Unknown Region"
+
+    if raw_name_clean in WEATHER_NAME_MAP:
+        return WEATHER_NAME_MAP[raw_name_clean]
+    
+    if raw_name_clean in CANONICAL_REGION_LOOKUP:
+        return CANONICAL_REGION_LOOKUP[raw_name_clean]
+    
+    # Check if prefixed with MapRegion
+    if raw_name_clean.startswith("MapRegion"):
+        stripped = raw_name_clean[9:]
+        if raw_name_clean in CANONICAL_REGION_LOOKUP:
+            return CANONICAL_REGION_LOOKUP[raw_name_clean]
+        name = stripped
+    else:
+        # Check if adding MapRegion matches canonical database
+        prefixed = f"MapRegion{raw_name_clean}"
+        if prefixed in CANONICAL_REGION_LOOKUP:
+            return CANONICAL_REGION_LOOKUP[prefixed]
+        name = raw_name_clean
     
     # Space out CamelCase (e.g. WhisperingSwamp -> Whispering Swamp)
     name = re.sub(r'([a-z])([A-Z])', r'\1 \2', name)
     name = re.sub(r'([A-Z]+)([A-Z][a-z])', r'\1 \2', name)
-    return name.replace('_', ' ').strip().title()
+    formatted = name.replace('_', ' ').strip().title()
+    return formatted if formatted else "Unknown Region"
 
 
 def get_canonical_regions():
-    """Return all canonical map regions in the game."""
-    return list(CANONICAL_MAP_REGIONS)
-
-WEATHER_ICON_MAP = {
-    "Sunny": "☀️",
-    "Cloudy": "⛅",
-    "Rain Storm": "⛈️",
-    "Rain": "🌧️",
-    "Fog": "🌫️",
-    "Snow": "❄️"
-}
+    """Return all canonical map regions in the game with fresh dictionary copies."""
+    return [dict(region) for region in CANONICAL_MAP_REGIONS]
 
 
 def find_newest_save():
