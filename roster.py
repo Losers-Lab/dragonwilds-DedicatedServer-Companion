@@ -20,9 +20,6 @@ def get_roster(active_online_names=None):
     except Exception:
         mtime = 0
 
-    world_info = get_world_data()
-    steam_map = world_info.get("steam_map", {})
-
     if _roster_cache["mtime"] == mtime and _roster_cache["players"]:
         raw_players = _roster_cache["players"]
     else:
@@ -31,11 +28,16 @@ def get_roster(active_online_names=None):
             with open(cfg_path, "r", encoding="utf-8", errors="ignore") as f:
                 content = f.read()
 
-            owner_match = re.search(r"OwnerId=([a-f0-9]+)", content, re.IGNORECASE)
+            owner_match = re.search(r"OwnerId\s*=\s*([a-f0-9]+)", content, re.IGNORECASE)
             owner_id = owner_match.group(1).lower() if owner_match else ""
 
-            pattern = r'KnownPlayerList=\(UserId=([a-f0-9]+),UserName="([^"]+)",(?:Privileges=\(PrivilegeMask=(\d+)\),)?bIsBanned=(True|False)\)'
-            for m in re.finditer(pattern, content):
+            pattern = (
+                r'KnownPlayerList\s*=\s*\(\s*UserId\s*=\s*([a-f0-9]+)\s*,\s*'
+                r'UserName\s*=\s*"([^"]*)"\s*'
+                r'(?:,\s*Privileges\s*=\s*\(\s*PrivilegeMask\s*=\s*(\d+)\s*\)\s*)?'
+                r',\s*bIsBanned\s*=\s*(True|False)\s*\)'
+            )
+            for m in re.finditer(pattern, content, re.IGNORECASE):
                 uid, uname, priv, banned = m.groups()
                 uid_clean = uid.strip().lower()
                 is_owner = (uid_clean == owner_id)
@@ -56,18 +58,25 @@ def get_roster(active_online_names=None):
         except Exception as e:
             print(f"Error parsing DedicatedServer.ini: {e}")
 
-    # Attach dynamic live online status & steam IDs
+    # Fetch steam mapping from world data
+    world_info = get_world_data()
+    steam_map = world_info.get("steam_map", {})
+
+    # Attach dynamic live online status, steam IDs & character names
+    from state import get_character_name
     online_set = set(active_online_names or [])
     enriched_roster = []
 
     for p in raw_players:
         uid = p["user_id"]
         steam_id = steam_map.get(uid)
+        char_name = get_character_name(uid)
         is_online = (p["name"] in online_set)
 
         enriched_roster.append({
             "user_id": uid,
             "name": p["name"],
+            "character_name": char_name,
             "steam_id": steam_id,
             "is_owner": p["is_owner"],
             "is_admin": p["is_admin"],

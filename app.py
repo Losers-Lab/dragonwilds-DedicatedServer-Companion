@@ -67,7 +67,7 @@ def api_save_files():
 
 @app.route("/api/save-files/download/<path:filename>")
 def api_download_save(filename):
-    safe_name = os.path.basename(filename)
+    safe_name = os.path.basename(filename.replace("\\", "/"))
     if not (safe_name.endswith(".sav") or safe_name.endswith(".sav.backup")):
         abort(400, description="Invalid save file extension")
     save_dir = config.SAVE_PATH if config.SAVE_PATH and os.path.exists(config.SAVE_PATH) else None
@@ -547,21 +547,24 @@ def index():
           </div>
         </div>
 
-        <table>
-          <thead>
-            <tr>
-              <th>Player</th>
-              <th>Role</th>
-              <th>Status</th>
-              <th>Steam ID</th>
-              <th>EOS User ID</th>
-              <th>State</th>
-            </tr>
-          </thead>
-          <tbody id="roster-table-body">
-            <tr><td colspan="6" style="color:#94a3b8; text-align:center; padding:18px;">Loading server roster...</td></tr>
-          </tbody>
-        </table>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Account / Steam</th>
+                <th>Character Name</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>Steam ID</th>
+                <th>EOS User ID</th>
+                <th>State</th>
+              </tr>
+            </thead>
+            <tbody id="roster-table-body">
+              <tr><td colspan="7" style="color:#94a3b8; text-align:center; padding:18px;">Loading server roster...</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
 
@@ -575,20 +578,22 @@ def index():
           </div>
           <button class="pg-btn" style="padding:6px 14px; font-weight:600; background:#1e293b; border-color:#334155; color:#f8fafc;" onclick="loadSaveFiles()">🔄 Refresh Files</button>
         </div>
-        <table>
-          <thead>
-            <tr>
-              <th>File Name</th>
-              <th>Type</th>
-              <th>File Size</th>
-              <th>Last Modified</th>
-              <th style="text-align:right;">Actions</th>
-            </tr>
-          </thead>
-          <tbody id="save-files-table-body">
-            <tr><td colspan="5" style="color:#94a3b8; text-align:center; padding:20px;">Scanning save files...</td></tr>
-          </tbody>
-        </table>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>File Name</th>
+                <th>Type</th>
+                <th>File Size</th>
+                <th>Last Modified</th>
+                <th style="text-align:right;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="save-files-table-body">
+              <tr><td colspan="5" style="color:#94a3b8; text-align:center; padding:20px;">Scanning save files...</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
 
@@ -632,6 +637,16 @@ def index():
 </div>
 
 <script>
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 let currentTab = 'overview';
 
 // State caches
@@ -751,18 +766,23 @@ async function loadStatus() {
     // Players list view
     const pContainer = document.getElementById('current-players-list');
     pContainer.innerHTML = '';
-    if (!s.players || s.players.length === 0) {
+    const details = s.players_detail || (s.players || []).map(p => ({ name: p, character_name: null }));
+    if (!details || details.length === 0) {
       pContainer.innerHTML = '<div style="color:#94a3b8; padding:16px 0;">No players currently connected.</div>';
     } else {
-      s.players.forEach(p => {
+      details.forEach(p => {
+        const charTitle = p.character_name 
+          ? `<span style="color:#f59e0b; font-weight:bold;">${escapeHtml(p.character_name)}</span> <span style="font-weight:normal; color:#94a3b8; font-size:13px;">(${escapeHtml(p.name)})</span>` 
+          : `<span style="font-weight:bold; color:#fff;">${escapeHtml(p.name)}</span>`;
+        const initial = (p.character_name || p.name || '?')[0].toUpperCase();
         const div = document.createElement('div');
         div.className = 'player-row';
         div.innerHTML = `
           <div class="player-left">
-            <div class="avatar">${(p||'?')[0].toUpperCase()}</div>
+            <div class="avatar">${escapeHtml(initial)}</div>
             <div>
-              <div style="font-weight:bold; color:#fff;">${p}</div>
-              <div style="font-size:12px; color:#94a3b8;">Connected to ${s.world||'World'}</div>
+              <div>${charTitle}</div>
+              <div style="font-size:12px; color:#94a3b8;">Connected to ${escapeHtml(s.world||'World')}</div>
             </div>
           </div>
           <div class="badge-online">Online</div>
@@ -788,11 +808,11 @@ function renderWeather(list) {
       <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
         <span style="font-size:26px;">${w.icon || '🌤️'}</span>
         <span style="font-size:11px; font-weight:600; padding:2px 8px; border-radius:12px; background:#19253d; color:${w.remaining_seconds > 0 ? '#38bdf8' : '#94a3b8'};">
-          ${w.remaining_text || 'Active'}
+          ${escapeHtml(w.remaining_text || 'Active')}
         </span>
       </div>
-      <div style="font-size:12.5px; font-weight:500; color:#94a3b8; margin-bottom:2px;">${w.region || w.raw_region}</div>
-      <div style="font-size:15px; font-weight:bold; color:#f8fafc;">${w.type}</div>
+      <div style="font-size:12.5px; font-weight:500; color:#94a3b8; margin-bottom:2px;">${escapeHtml(w.region || w.raw_region)}</div>
+      <div style="font-size:15px; font-weight:bold; color:#f8fafc;">${escapeHtml(w.type)}</div>
     </div>
   `).join('');
 }
@@ -826,15 +846,16 @@ function renderRoster() {
     if (rosterFilter === 'online' && !p.online) return false;
     if (q) {
       const matchName = (p.name || '').toLowerCase().includes(q);
+      const matchChar = (p.character_name || '').toLowerCase().includes(q);
       const matchSteam = (p.steam_id || '').includes(q);
       const matchEos = (p.user_id || '').toLowerCase().includes(q);
-      return matchName || matchSteam || matchEos;
+      return matchName || matchChar || matchSteam || matchEos;
     }
     return true;
   });
 
   if (filtered.length === 0) {
-    body.innerHTML = '<tr><td colspan="6" style="color:#94a3b8; text-align:center; padding:18px;">No matching players found in server roster.</td></tr>';
+    body.innerHTML = '<tr><td colspan="7" style="color:#94a3b8; text-align:center; padding:18px;">No matching players found in server roster.</td></tr>';
     return;
   }
 
@@ -846,12 +867,16 @@ function renderRoster() {
       roleBadge = '<span style="background:#581c87; color:#e9d5ff; padding:3px 8px; border-radius:6px; font-size:11px; font-weight:600;">🛡️ Admin</span>';
     }
 
+    const charCell = p.character_name
+      ? `<strong style="color:#f59e0b;">${escapeHtml(p.character_name)}</strong>`
+      : '<span style="color:#64748b;">—</span>';
+
     const statusBadge = p.online 
       ? '<span style="background:#064e3b; color:#34d399; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:600;">🟢 Online</span>'
       : '<span style="background:#1e293b; color:#64748b; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:600;">Offline</span>';
 
     const steamCell = p.steam_id
-      ? `<a href="https://steamcommunity.com/profiles/${p.steam_id}" target="_blank" style="color:#38bdf8; text-decoration:none; font-family:monospace; font-size:12px;">${p.steam_id} ↗</a>`
+      ? `<a href="https://steamcommunity.com/profiles/${encodeURIComponent(p.steam_id)}" target="_blank" style="color:#38bdf8; text-decoration:none; font-family:monospace; font-size:12px;">${escapeHtml(p.steam_id)} ↗</a>`
       : '<span style="color:#64748b; font-size:12px;">Unlinked</span>';
 
     const bannedBadge = p.is_banned
@@ -862,11 +887,12 @@ function renderRoster() {
 
     return `
       <tr>
-        <td><strong>${p.name}</strong></td>
+        <td><strong>${escapeHtml(p.name)}</strong></td>
+        <td>${charCell}</td>
         <td>${roleBadge}</td>
         <td>${statusBadge}</td>
         <td>${steamCell}</td>
-        <td><code style="color:#94a3b8; font-size:12px;" title="${p.user_id}">${shortEos}</code></td>
+        <td><code style="color:#94a3b8; font-size:12px;" title="${escapeHtml(p.user_id)}">${escapeHtml(shortEos)}</code></td>
         <td>${bannedBadge}</td>
       </tr>
     `;
@@ -900,10 +926,10 @@ async function loadSaveFiles() {
 
       return `
         <tr>
-          <td><strong style="font-family:monospace; color:#f8fafc;">${f.filename}</strong></td>
+          <td><strong style="font-family:monospace; color:#f8fafc;">${escapeHtml(f.filename)}</strong></td>
           <td>${typeBadge}</td>
-          <td>${f.size_str}</td>
-          <td style="color:#94a3b8; font-size:13px;">${f.modified_text}</td>
+          <td>${escapeHtml(f.size_str)}</td>
+          <td style="color:#94a3b8; font-size:13px;">${escapeHtml(f.modified_text)}</td>
           <td style="text-align:right;">
             <a href="/api/save-files/download/${encodeURIComponent(f.filename)}" class="pg-btn" style="text-decoration:none; display:inline-block; padding:4px 12px; background:#e65100; color:#fff; border-color:#e65100; font-weight:600;">
               📥 Download
@@ -1143,8 +1169,8 @@ function renderLogTerminal(autoScrollToEnd = true) {
 async function refreshAll() {
   await loadStatus();
   await loadLeaderboard();
+  await loadSaveFiles();
   if (currentTab === 'players') await loadRoster();
-  if (currentTab === 'backups') await loadSaveFiles();
   if (currentTab === 'logs' && isLive) {
     await fetchLogs();
   }
