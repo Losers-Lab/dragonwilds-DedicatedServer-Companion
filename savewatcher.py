@@ -38,6 +38,16 @@ def save_loop():
 
         if newest:
             update_field("last_save", seconds_to_human(time.time() - newest) + " ago")
+            if _last_mtime is None or newest > _last_mtime:
+                try:
+                    from worldreader import get_world_data
+                    wdata = get_world_data()
+                    if wdata.get("day_count"):
+                        update_field("day_count", wdata["day_count"])
+                    if wdata.get("weather"):
+                        update_field("weather", wdata["weather"])
+                except Exception:
+                    pass
             _last_mtime = newest
 
         time.sleep(5)

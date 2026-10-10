@@ -15,6 +15,8 @@ state = {
     "memory": "Unknown",
     "uptime": "Unknown",
     "last_save": "Unknown",
+    "day_count": 0,
+    "weather": [],
     "events": [],
     "updated": int(time.time())
 }
@@ -70,8 +72,30 @@ def update_field(key, value):
 
 
 def get_state():
+    from worldreader import get_world_data
+    from roster import get_roster
+
     with _lock:
         players = list(state["players"].values())
+        day_count = state.get("day_count", 0)
+        weather = state.get("weather", [])
+
+        if not day_count or not weather:
+            try:
+                wdata = get_world_data()
+                day_count = wdata.get("day_count", 0)
+                weather = wdata.get("weather", [])
+                state["day_count"] = day_count
+                state["weather"] = weather
+                if wdata.get("active_save") and state["world"] in ["Unknown", ""]:
+                    state["world"] = wdata["active_save"].replace(".sav", "")
+            except Exception:
+                pass
+
+        try:
+            full_roster = get_roster(players)
+        except Exception:
+            full_roster = []
 
         return {
             "status": state["status"],
@@ -86,6 +110,9 @@ def get_state():
             "memory": state["memory"],
             "uptime": state["uptime"],
             "last_save": state["last_save"],
+            "day_count": day_count,
+            "weather": weather,
+            "roster": full_roster,
             "events": state["events"],
             "updated": state["updated"]
         }
