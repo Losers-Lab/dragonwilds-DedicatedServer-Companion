@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_from_directory, abort
 import os
 import re
 from datetime import datetime
@@ -41,6 +41,42 @@ def status():
 @app.route("/leaderboard")
 def leaderboard():
     return jsonify(get_leaderboard())
+
+
+@app.route("/api/weather")
+def api_weather():
+    from worldreader import get_world_data
+    wdata = get_world_data()
+    return jsonify({
+        "day_count": wdata.get("day_count", 0),
+        "weather": wdata.get("weather", [])
+    })
+
+
+@app.route("/api/roster")
+def api_roster():
+    st = get_state()
+    return jsonify(st.get("roster", []))
+
+
+@app.route("/api/save-files")
+def api_save_files():
+    from worldreader import get_save_files_list
+    return jsonify(get_save_files_list())
+
+
+@app.route("/api/save-files/download/<path:filename>")
+def api_download_save(filename):
+    safe_name = os.path.basename(filename.replace("\\", "/"))
+    if not (safe_name.endswith(".sav") or safe_name.endswith(".sav.backup")):
+        abort(400, description="Invalid save file extension")
+    save_dir = config.SAVE_PATH if config.SAVE_PATH and os.path.exists(config.SAVE_PATH) else None
+    if not save_dir:
+        abort(404, description="Save directory not configured")
+    full_path = os.path.join(save_dir, safe_name)
+    if not os.path.exists(full_path):
+        abort(404, description="File not found")
+    return send_from_directory(save_dir, safe_name, as_attachment=True)
 
 
 @app.route("/api/log-files")
@@ -147,7 +183,7 @@ def api_logs():
 
 @app.route("/")
 def index():
-    return """
+    return r"""
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -270,6 +306,7 @@ def index():
     
     @media(max-width:1100px){
       .grid { grid-template-columns:repeat(2,1fr); }
+      #weather-grid { grid-template-columns:repeat(2,1fr) !important; }
       .overview-split { grid-template-columns:1fr; }
       .sidebar { display:none; }
       .mobile-nav { display:flex; }
@@ -277,6 +314,7 @@ def index():
     }
     @media(max-width:640px){
       .grid { grid-template-columns:1fr; }
+      #weather-grid { grid-template-columns:1fr !important; }
       .logs-toolbar { flex-direction:column; align-items:stretch; }
     }
   </style>
@@ -295,12 +333,28 @@ def index():
         <span>Players</span>
         <span class="badge" id="nav-players-count">0</span>
       </a>
+      <a class="nav-link" data-tab="backups" onclick="setTab('backups')">
+        <span>Backups</span>
+        <span class="badge" id="nav-backups-count" style="display:none;">0</span>
+      </a>
       <a class="nav-link" data-tab="leaderboard" onclick="setTab('leaderboard')">Leaderboard</a>
       <a class="nav-link" data-tab="events" onclick="setTab('events')">Events</a>
       <a class="nav-link" data-tab="logs" onclick="setTab('logs')">Logs</a>
       <hr>
       <a href="/status" target="_blank">
         <span>API Status</span>
+        <span style="font-size:11px;">↗</span>
+      </a>
+      <a href="/api/weather" target="_blank">
+        <span>API Weather</span>
+        <span style="font-size:11px;">↗</span>
+      </a>
+      <a href="/api/roster" target="_blank">
+        <span>API Roster</span>
+        <span style="font-size:11px;">↗</span>
+      </a>
+      <a href="/api/save-files" target="_blank">
+        <span>API Save Files</span>
         <span style="font-size:11px;">↗</span>
       </a>
       <a href="/leaderboard" target="_blank">
@@ -331,6 +385,7 @@ def index():
     <div class="mobile-nav">
       <a class="mobile-link active" data-tab="overview" onclick="setTab('overview')">Overview</a>
       <a class="mobile-link" data-tab="players" onclick="setTab('players')">Players</a>
+      <a class="mobile-link" data-tab="backups" onclick="setTab('backups')">Backups</a>
       <a class="mobile-link" data-tab="leaderboard" onclick="setTab('leaderboard')">Leaderboard</a>
       <a class="mobile-link" data-tab="events" onclick="setTab('events')">Events</a>
       <a class="mobile-link" data-tab="logs" onclick="setTab('logs')">Logs</a>
@@ -341,13 +396,36 @@ def index():
       <!-- 8 Stat Cards -->
       <div class="grid">
         <div class="card"><div class="icon">PL</div><div class="label">Players</div><div class="value" id="stat-players">0 / 6</div></div>
-        <div class="card"><div class="icon">NM</div><div class="label">Names</div><div class="value" id="names" style="font-size:18px;">None</div></div>
+        <div class="card"><div class="icon">DAY</div><div class="label">World Day</div><div class="value" id="stat-day" style="font-size:22px; color:#f59e0b;">Day --</div></div>
         <div class="card"><div class="icon">WD</div><div class="label">World</div><div class="value" id="world" style="font-size:18px;">...</div></div>
         <div class="card"><div class="icon">UP</div><div class="label">Uptime</div><div class="value" id="uptime">...</div></div>
-        <div class="card"><div class="icon">SV</div><div class="label">Last Save</div><div class="value" id="save">...</div></div>
+        <div class="card">
+          <div class="icon">SV</div>
+          <div class="label">Last Save</div>
+          <div class="value" id="save">...</div>
+          <a onclick="setTab('backups')" style="color:#f59e0b; font-size:11px; cursor:pointer; text-decoration:underline; display:block; margin-top:4px;">Backups 💾</a>
+        </div>
         <div class="card"><div class="icon">CPU</div><div class="label">CPU</div><div class="value" id="cpu">N/A</div></div>
         <div class="card"><div class="icon">RAM</div><div class="label">RAM</div><div class="value" id="ram">N/A</div></div>
         <div class="card"><div class="icon">VER</div><div class="label">Version</div><div class="value" id="version" style="font-size:18px;">...</div></div>
+      </div>
+
+      <!-- Regional Weather Section -->
+      <div class="card" style="margin-bottom:22px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:8px;">
+          <div>
+            <h2 style="margin:0; font-size:18px; font-weight:bold; color:#fff; display:flex; align-items:center; gap:8px;">
+              <span>🌤️</span> Regional Weather & Biome Forecast
+            </h2>
+            <div style="font-size:12.5px; color:#94a3b8; margin-top:2px;">Real-time climate conditions and remaining storm durations across all biomes</div>
+          </div>
+          <div style="font-size:12px; color:#f59e0b; background:#1c2438; padding:4px 10px; border-radius:6px; font-weight:600;" id="weather-day-badge">
+            Day --
+          </div>
+        </div>
+        <div id="weather-grid" style="display:grid; grid-template-columns:repeat(4, minmax(180px, 1fr)); gap:14px;">
+          <div style="color:#94a3b8; grid-column:1/-1; padding:12px 0;">Reading weather data from world save...</div>
+        </div>
       </div>
 
       <!-- Split Bottom Row: Recent Events & Leaderboard -->
@@ -446,9 +524,76 @@ def index():
 
     <!-- VIEW 3: PLAYERS -->
     <div id="view-players" style="display:none;">
-      <div class="card">
+      <!-- Active Connected Players -->
+      <div class="card" style="margin-bottom:22px;">
         <h2 style="margin-bottom:18px;">Current Connected Players</h2>
         <div id="current-players-list">Loading players...</div>
+      </div>
+
+      <!-- All-Time Server Roster -->
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:12px;">
+          <div>
+            <h2 style="margin:0; font-size:18px; font-weight:bold; color:#fff;">All-Time Server Roster</h2>
+            <div style="font-size:13px; color:#94a3b8; margin-top:2px;">Known player profiles from DedicatedServer.ini with linked Steam and EOS identifiers</div>
+          </div>
+          <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+            <div class="pill-group">
+              <button class="pill-btn active" onclick="setRosterFilter('all', this)">All</button>
+              <button class="pill-btn" onclick="setRosterFilter('admins', this)">Admins</button>
+              <button class="pill-btn" onclick="setRosterFilter('online', this)">Online</button>
+            </div>
+            <input type="text" class="search-input" id="roster-search-input" placeholder="Search roster..." oninput="renderRoster()">
+          </div>
+        </div>
+
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Account / Steam</th>
+                <th>Character Name</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>Steam ID</th>
+                <th>EOS User ID</th>
+                <th>State</th>
+              </tr>
+            </thead>
+            <tbody id="roster-table-body">
+              <tr><td colspan="7" style="color:#94a3b8; text-align:center; padding:18px;">Loading server roster...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- VIEW: SAVE BACKUPS -->
+    <div id="view-backups" style="display:none;">
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:12px;">
+          <div>
+            <h2 style="margin:0; font-size:18px; font-weight:bold; color:#fff;">Save Games & Backups</h2>
+            <div style="font-size:13px; color:#94a3b8; margin-top:2px;">Download raw server saves for offline backup, singleplayer exploration, or RS-Dragonwilds-Editor.</div>
+          </div>
+          <button class="pg-btn" style="padding:6px 14px; font-weight:600; background:#1e293b; border-color:#334155; color:#f8fafc;" onclick="loadSaveFiles()">🔄 Refresh Files</button>
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>File Name</th>
+                <th>Type</th>
+                <th>File Size</th>
+                <th>Last Modified</th>
+                <th style="text-align:right;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="save-files-table-body">
+              <tr><td colspan="5" style="color:#94a3b8; text-align:center; padding:20px;">Scanning save files...</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
 
@@ -492,6 +637,16 @@ def index():
 </div>
 
 <script>
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 let currentTab = 'overview';
 
 // State caches
@@ -523,12 +678,14 @@ function setTab(tab) {
   const vOverview = document.getElementById('view-overview');
   const vLogs = document.getElementById('view-logs');
   const vPlayers = document.getElementById('view-players');
+  const vBackups = document.getElementById('view-backups');
   const vLeaderboard = document.getElementById('view-leaderboard');
   const vEvents = document.getElementById('view-events');
 
   vOverview.style.display = 'none';
   vLogs.style.display = 'none';
   vPlayers.style.display = 'none';
+  if (vBackups) vBackups.style.display = 'none';
   vLeaderboard.style.display = 'none';
   vEvents.style.display = 'none';
 
@@ -544,8 +701,14 @@ function setTab(tab) {
     fetchLogs();
   } else if (tab === 'players') {
     title.innerText = 'Players';
-    subtitle.innerText = 'Active players currently in-game';
+    subtitle.innerText = 'Active players & all-time registered server roster';
     vPlayers.style.display = 'block';
+    loadRoster();
+  } else if (tab === 'backups') {
+    title.innerText = 'Save Backups';
+    subtitle.innerText = 'Download server save files for local backups or editing';
+    if (vBackups) vBackups.style.display = 'block';
+    loadSaveFiles();
   } else if (tab === 'leaderboard') {
     title.innerText = 'Leaderboard';
     subtitle.innerText = 'Player playtime rankings & sessions';
@@ -557,7 +720,7 @@ function setTab(tab) {
   }
 }
 
-// ----------------- OVERVIEW STATUS & EVENTS -----------------
+// ----------------- OVERVIEW STATUS, WEATHER & EVENTS -----------------
 async function loadStatus() {
   try {
     const res = await fetch('/status');
@@ -565,7 +728,12 @@ async function loadStatus() {
 
     document.getElementById('stat-players').innerText = `${s.players_online} / ${s.max_players}`;
     document.getElementById('nav-players-count').innerText = s.players_online;
-    document.getElementById('names').innerText = s.players_text || 'None';
+    
+    const dayEl = document.getElementById('stat-day');
+    if (dayEl) dayEl.innerText = s.day_count ? `Day ${s.day_count}` : 'Day --';
+    const weatherDayEl = document.getElementById('weather-day-badge');
+    if (weatherDayEl) weatherDayEl.innerText = s.day_count ? `Day ${s.day_count}` : 'Day --';
+
     document.getElementById('world').innerText = s.world || 'Unknown';
     document.getElementById('uptime').innerText = s.uptime || 'Unknown';
     document.getElementById('save').innerText = s.last_save || 'Unknown';
@@ -588,6 +756,9 @@ async function loadStatus() {
       label.innerText = 'Server Offline';
     }
 
+    // Weather forecast
+    renderWeather(s.weather);
+
     // Events caching
     allEvents = s.events || [];
     renderEvents();
@@ -595,18 +766,23 @@ async function loadStatus() {
     // Players list view
     const pContainer = document.getElementById('current-players-list');
     pContainer.innerHTML = '';
-    if (!s.players || s.players.length === 0) {
+    const details = s.players_detail || (s.players || []).map(p => ({ name: p, character_name: null }));
+    if (!details || details.length === 0) {
       pContainer.innerHTML = '<div style="color:#94a3b8; padding:16px 0;">No players currently connected.</div>';
     } else {
-      s.players.forEach(p => {
+      details.forEach(p => {
+        const charTitle = p.character_name 
+          ? `<span style="color:#f59e0b; font-weight:bold;">${escapeHtml(p.character_name)}</span> <span style="font-weight:normal; color:#94a3b8; font-size:13px;">(${escapeHtml(p.name)})</span>` 
+          : `<span style="font-weight:bold; color:#fff;">${escapeHtml(p.name)}</span>`;
+        const initial = (p.character_name || p.name || '?')[0].toUpperCase();
         const div = document.createElement('div');
         div.className = 'player-row';
         div.innerHTML = `
           <div class="player-left">
-            <div class="avatar">${(p||'?')[0].toUpperCase()}</div>
+            <div class="avatar">${escapeHtml(initial)}</div>
             <div>
-              <div style="font-weight:bold; color:#fff;">${p}</div>
-              <div style="font-size:12px; color:#94a3b8;">Connected to ${s.world||'World'}</div>
+              <div>${charTitle}</div>
+              <div style="font-size:12px; color:#94a3b8;">Connected to ${escapeHtml(s.world||'World')}</div>
             </div>
           </div>
           <div class="badge-online">Online</div>
@@ -618,6 +794,151 @@ async function loadStatus() {
   } catch (err) {
     console.error('Status fetch error:', err);
   }
+}
+
+function renderWeather(list) {
+  const grid = document.getElementById('weather-grid');
+  if (!grid) return;
+  if (!list || list.length === 0) {
+    grid.innerHTML = '<div style="color:#94a3b8; grid-column:1/-1; padding:12px 0;">No weather forecast available in save file.</div>';
+    return;
+  }
+  grid.innerHTML = list.map(w => `
+    <div class="weather-biome-card" style="background:#0c1322; border:1px solid #1c283f; border-radius:10px; padding:14px 16px;">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+        <span style="font-size:26px;">${w.icon || '🌤️'}</span>
+        <span style="font-size:11px; font-weight:600; padding:2px 8px; border-radius:12px; background:#19253d; color:${w.remaining_seconds > 0 ? '#38bdf8' : '#94a3b8'};">
+          ${escapeHtml(w.remaining_text || 'Active')}
+        </span>
+      </div>
+      <div style="font-size:12.5px; font-weight:500; color:#94a3b8; margin-bottom:2px;">${escapeHtml(w.region || w.raw_region)}</div>
+      <div style="font-size:15px; font-weight:bold; color:#f8fafc;">${escapeHtml(w.type)}</div>
+    </div>
+  `).join('');
+}
+
+// ----------------- ALL-TIME ROSTER -----------------
+let allRoster = [];
+let rosterFilter = 'all';
+
+async function loadRoster() {
+  try {
+    const res = await fetch('/api/roster');
+    allRoster = await res.json();
+    renderRoster();
+  } catch(e) {}
+}
+
+function setRosterFilter(filter, btn) {
+  rosterFilter = filter;
+  btn.parentElement.querySelectorAll('.pill-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderRoster();
+}
+
+function renderRoster() {
+  const body = document.getElementById('roster-table-body');
+  if (!body) return;
+  const q = (document.getElementById('roster-search-input')?.value || '').toLowerCase().trim();
+
+  let filtered = allRoster.filter(p => {
+    if (rosterFilter === 'admins' && !p.is_admin) return false;
+    if (rosterFilter === 'online' && !p.online) return false;
+    if (q) {
+      const matchName = (p.name || '').toLowerCase().includes(q);
+      const matchChar = (p.character_name || '').toLowerCase().includes(q);
+      const matchSteam = (p.steam_id || '').includes(q);
+      const matchEos = (p.user_id || '').toLowerCase().includes(q);
+      return matchName || matchChar || matchSteam || matchEos;
+    }
+    return true;
+  });
+
+  if (filtered.length === 0) {
+    body.innerHTML = '<tr><td colspan="7" style="color:#94a3b8; text-align:center; padding:18px;">No matching players found in server roster.</td></tr>';
+    return;
+  }
+
+  body.innerHTML = filtered.map(p => {
+    let roleBadge = '<span style="background:#1e293b; color:#94a3b8; padding:3px 8px; border-radius:6px; font-size:11px; font-weight:600;">Member</span>';
+    if (p.is_owner) {
+      roleBadge = '<span style="background:#78350f; color:#fde68a; padding:3px 8px; border-radius:6px; font-size:11px; font-weight:600;">👑 Owner</span>';
+    } else if (p.is_admin) {
+      roleBadge = '<span style="background:#581c87; color:#e9d5ff; padding:3px 8px; border-radius:6px; font-size:11px; font-weight:600;">🛡️ Admin</span>';
+    }
+
+    const charCell = p.character_name
+      ? `<strong style="color:#f59e0b;">${escapeHtml(p.character_name)}</strong>`
+      : '<span style="color:#64748b;">—</span>';
+
+    const statusBadge = p.online 
+      ? '<span style="background:#064e3b; color:#34d399; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:600;">🟢 Online</span>'
+      : '<span style="background:#1e293b; color:#64748b; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:600;">Offline</span>';
+
+    const steamCell = p.steam_id
+      ? `<a href="https://steamcommunity.com/profiles/${encodeURIComponent(p.steam_id)}" target="_blank" style="color:#38bdf8; text-decoration:none; font-family:monospace; font-size:12px;">${escapeHtml(p.steam_id)} ↗</a>`
+      : '<span style="color:#64748b; font-size:12px;">Unlinked</span>';
+
+    const bannedBadge = p.is_banned
+      ? '<span style="background:#7f1d1d; color:#fca5a5; padding:2px 8px; border-radius:6px; font-size:11px; font-weight:600;">Banned</span>'
+      : '<span style="color:#10b981; font-size:12px;">Active</span>';
+
+    const shortEos = p.user_id ? `${p.user_id.slice(0, 8)}...${p.user_id.slice(-6)}` : 'N/A';
+
+    return `
+      <tr>
+        <td><strong>${escapeHtml(p.name)}</strong></td>
+        <td>${charCell}</td>
+        <td>${roleBadge}</td>
+        <td>${statusBadge}</td>
+        <td>${steamCell}</td>
+        <td><code style="color:#94a3b8; font-size:12px;" title="${escapeHtml(p.user_id)}">${escapeHtml(shortEos)}</code></td>
+        <td>${bannedBadge}</td>
+      </tr>
+    `;
+  }).join('');
+}
+
+// ----------------- SAVE FILE BACKUPS -----------------
+let allSaveFiles = [];
+
+async function loadSaveFiles() {
+  try {
+    const res = await fetch('/api/save-files');
+    allSaveFiles = await res.json();
+    const body = document.getElementById('save-files-table-body');
+    const badge = document.getElementById('nav-backups-count');
+    if (badge) {
+      badge.innerText = allSaveFiles.length;
+      badge.style.display = allSaveFiles.length > 0 ? 'inline' : 'none';
+    }
+    if (!body) return;
+
+    if (!allSaveFiles || allSaveFiles.length === 0) {
+      body.innerHTML = '<tr><td colspan="5" style="color:#94a3b8; text-align:center; padding:18px;">No save files found in server save directory.</td></tr>';
+      return;
+    }
+
+    body.innerHTML = allSaveFiles.map(f => {
+      const typeBadge = f.is_backup
+        ? '<span style="background:#1e293b; color:#94a3b8; padding:3px 8px; border-radius:6px; font-size:11px; font-weight:600;">Backup (.sav.backup)</span>'
+        : '<span style="background:#064e3b; color:#34d399; padding:3px 8px; border-radius:6px; font-size:11px; font-weight:600;">Active World (.sav)</span>';
+
+      return `
+        <tr>
+          <td><strong style="font-family:monospace; color:#f8fafc;">${escapeHtml(f.filename)}</strong></td>
+          <td>${typeBadge}</td>
+          <td>${escapeHtml(f.size_str)}</td>
+          <td style="color:#94a3b8; font-size:13px;">${escapeHtml(f.modified_text)}</td>
+          <td style="text-align:right;">
+            <a href="/api/save-files/download/${encodeURIComponent(f.filename)}" class="pg-btn" style="text-decoration:none; display:inline-block; padding:4px 12px; background:#e65100; color:#fff; border-color:#e65100; font-weight:600;">
+              📥 Download
+            </a>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  } catch(e) {}
 }
 
 function setEventFilter(cat, btn) {
@@ -848,6 +1169,8 @@ function renderLogTerminal(autoScrollToEnd = true) {
 async function refreshAll() {
   await loadStatus();
   await loadLeaderboard();
+  await loadSaveFiles();
+  if (currentTab === 'players') await loadRoster();
   if (currentTab === 'logs' && isLive) {
     await fetchLogs();
   }
@@ -855,7 +1178,7 @@ async function refreshAll() {
 
 // Initial hash support
 const hash = (window.location.hash || '').replace('#', '');
-if (['overview', 'players', 'leaderboard', 'events', 'logs'].includes(hash)) {
+if (['overview', 'players', 'backups', 'leaderboard', 'events', 'logs'].includes(hash)) {
   setTab(hash);
 } else {
   setTab('overview');

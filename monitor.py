@@ -6,7 +6,7 @@ import time
 from collections import deque
 from datetime import datetime, timezone
 import config
-from state import set_player, remove_player, update_field, add_event, clear_players
+from state import set_player, remove_player, update_field, add_event, clear_players, set_character_name
 from database import log_event, player_join, player_leave
 
 _server_started_at = None
@@ -34,6 +34,11 @@ def container_running():
 
 def parse_line(line, is_replay=False):
     global _server_started_at
+
+    # Track player character name assignments
+    char_info = re.search(r"Account\[XP:([a-f0-9]+)\]\s+Character Name\[(.*?)\]", line, re.IGNORECASE)
+    if char_info:
+        set_character_name(char_info.group(1).lower(), char_info.group(2).strip())
 
     # Track server start time from early timestamps if not set
     if _server_started_at is None:
@@ -124,6 +129,14 @@ def load_recent_file_logs():
                 if pv_match:
                     update_field("version", pv_match.group(1))
                     print(f"Detected ProjectVersion from startup: {pv_match.group(1)}", flush=True)
+
+        # Pre-scan for character name assignments across the log
+        with open(config.LOG_PATH, "r", encoding="utf-8", errors="ignore") as f:
+            for line in f:
+                if "Character Name[" in line:
+                    char_info = re.search(r"Account\[XP:([a-f0-9]+)\]\s+Character Name\[(.*?)\]", line, re.IGNORECASE)
+                    if char_info:
+                        set_character_name(char_info.group(1).lower(), char_info.group(2).strip())
 
         # Then replay the tail lines into state without sending alert spam
         with open(config.LOG_PATH, "r", encoding="utf-8", errors="ignore") as f:

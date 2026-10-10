@@ -6,12 +6,14 @@ services:
     ports:
       - "9876:9876"
     volumes:
-      # Mount Dragonwilds server saves and logs from C:\DragonwildsServer
+      # Mount Dragonwilds server saves, logs, and server config from C:\DragonwildsServer
       - "C:/DragonwildsServer/RSDragonwilds/Saved/SaveGames:/savegames:ro"
       - "C:/DragonwildsServer/RSDragonwilds/Saved/Logs:/logs:ro"
+      - "C:/DragonwildsServer/RSDragonwilds/Saved/Config/WindowsServer:/serverconfig:ro"
     environment:
       SAVE_PATH: /savegames
       LOG_PATH: /logs/RSDragonwilds.log
+      SERVER_CONFIG_PATH: /serverconfig/DedicatedServer.ini
       MAX_PLAYERS: 6
       SERVER_NAME: Dragonwilds
       PORT: 9876

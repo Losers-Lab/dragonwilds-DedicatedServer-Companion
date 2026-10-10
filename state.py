@@ -15,6 +15,8 @@ state = {
     "memory": "Unknown",
     "uptime": "Unknown",
     "last_save": "Unknown",
+    "day_count": 0,
+    "weather": [],
     "events": [],
     "updated": int(time.time())
 }
@@ -41,20 +43,56 @@ def add_event(message, category=None):
         state["updated"] = int(time.time())
 
 
-def set_player(account, name, notify=True):
+_character_names = {}
+
+
+def set_character_name(account, char_name):
+    if not account or not char_name:
+        return
+    key = account.strip().lower()
     with _lock:
-        state["players"][account] = name
+        _character_names[key] = char_name.strip()
+        state["updated"] = int(time.time())
+
+
+def get_character_name(account):
+    if not account:
+        return None
+    with _lock:
+        return _character_names.get(account.strip().lower())
+
+
+def get_all_character_names():
+    with _lock:
+        return dict(_character_names)
+
+
+def set_player(account, name, notify=True):
+    key = account.strip().lower() if account else ""
+    with _lock:
+        char_name = _character_names.get(key)
+        state["players"][account] = {
+            "account": account,
+            "name": name,
+            "character_name": char_name
+        }
         state["updated"] = int(time.time())
     if notify:
-        add_event(f"{name} joined")
+        char_label = f" ({char_name})" if char_name and char_name != name else ""
+        add_event(f"{name}{char_label} joined")
 
 
 def remove_player(account, name=None, notify=True):
+    key = account.strip().lower() if account else ""
     with _lock:
-        old_name = state["players"].pop(account, None)
+        old_val = state["players"].pop(account, None)
+        old_name = old_val.get("name") if isinstance(old_val, dict) else old_val
+        char_name = _character_names.get(key)
         state["updated"] = int(time.time())
     if notify:
-        add_event(f"{name or old_name or account} left")
+        pname = name or old_name or account
+        char_label = f" ({char_name})" if char_name and char_name != pname else ""
+        add_event(f"{pname}{char_label} left")
 
 
 def clear_players():
@@ -70,22 +108,84 @@ def update_field(key, value):
 
 
 def get_state():
-    with _lock:
-        players = list(state["players"].values())
+    from worldreader import get_world_data
+    from roster import get_roster
 
-        return {
-            "status": state["status"],
-            "server": state["server"],
-            "world": state["world"],
-            "version": state["version"],
-            "players_online": len(players),
-            "max_players": config.MAX_PLAYERS,
-            "players": players,
-            "players_text": ", ".join(players) if players else "None",
-            "cpu": state["cpu"],
-            "memory": state["memory"],
-            "uptime": state["uptime"],
-            "last_save": state["last_save"],
-            "events": state["events"],
-            "updated": state["updated"]
-        }
+    with _lock:
+        raw_players = list(state["players"].values())
+        players = []
+        players_detail = []
+        for p in raw_players:
+            if isinstance(p, dict):
+                p_name = p.get("name")
+                c_name = p.get("character_name") or _character_names.get(str(p.get("account", "")).lower())
+                players.append(p_name)
+                players_detail.append({
+                    "name": p_name,
+                    "account": p.get("account"),
+                    "character_name": c_name
+                })
+            else:
+                players.append(p)
+                players_detail.append({
+                    "name": p,
+                    "account": None,
+                    "character_name": None
+                })
+        day_count = state.get("day_count", 0)
+        weather = state.get("weather", [])
+        status_val = state["status"]
+        server_val = state["server"]
+        world_val = state["world"]
+        version_val = state["version"]
+        cpu_val = state["cpu"]
+        memory_val = state["memory"]
+        uptime_val = state["uptime"]
+        last_save_val = state["last_save"]
+        events_val = list(state["events"])
+        updated_val = state["updated"]
+        char_names_copy = dict(_character_names)
+
+    # Outside the lock to prevent disk I/O from blocking companion threads
+    if not day_count or not weather:
+        try:
+            wdata = get_world_data()
+            if wdata.get("day_count"):
+                day_count = wdata["day_count"]
+            if wdata.get("weather"):
+                weather = wdata["weather"]
+            with _lock:
+                state["day_count"] = day_count
+                state["weather"] = weather
+                if wdata.get("active_save") and state["world"] in ["Unknown", ""]:
+                    state["world"] = wdata["active_save"].replace(".sav", "")
+                    world_val = state["world"]
+        except Exception:
+            pass
+
+    try:
+        full_roster = get_roster(players)
+    except Exception:
+        full_roster = []
+
+    return {
+        "status": status_val,
+        "server": server_val,
+        "world": world_val,
+        "version": version_val,
+        "players_online": len(players),
+        "max_players": config.MAX_PLAYERS,
+        "players": players,
+        "players_detail": players_detail,
+        "players_text": ", ".join(players) if players else "None",
+        "cpu": cpu_val,
+        "memory": memory_val,
+        "uptime": uptime_val,
+        "last_save": last_save_val,
+        "day_count": day_count,
+        "weather": weather,
+        "roster": full_roster,
+        "character_names": char_names_copy,
+        "events": events_val,
+        "updated": updated_val
+    }
