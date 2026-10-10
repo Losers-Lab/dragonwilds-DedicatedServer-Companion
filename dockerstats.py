@@ -33,37 +33,23 @@ def get_proc_stats():
     except Exception:
         pass
 
-    # 2. Check for host stats file in logs volume if written by host script (e.g. exact game server process RAM)
-    if config.LOG_PATH:
-        host_stats_file = os.path.join(os.path.dirname(config.LOG_PATH), "host_stats.json")
-        if os.path.exists(host_stats_file):
-            try:
-                with open(host_stats_file, "r") as f:
-                    data = json.load(f)
-                    m = data.get("memory")
-                    if m:
-                        mem_str = m
-            except Exception:
-                pass
-
-    # 3. Fallback to system /proc/meminfo RAM
-    if mem_str == "N/A":
-        try:
-            mem = {}
-            with open("/proc/meminfo", "r") as f:
-                for line in f:
-                    parts = line.split(":")
-                    if len(parts) == 2:
-                        mem[parts[0].strip()] = int(parts[1].split()[0])
-            total_mb = mem.get("MemTotal", 0) / 1024
-            avail_mb = mem.get("MemAvailable", mem.get("MemFree", 0)) / 1024
-            used_mb = max(0, total_mb - avail_mb)
-            if used_mb >= 1024:
-                mem_str = f"{used_mb / 1024:.1f} GiB"
-            else:
-                mem_str = f"{used_mb:.0f} MiB"
-        except Exception:
-            pass
+    # 2. Real-time RAM usage from /proc/meminfo
+    try:
+        mem = {}
+        with open("/proc/meminfo", "r") as f:
+            for line in f:
+                parts = line.split(":")
+                if len(parts) == 2:
+                    mem[parts[0].strip()] = int(parts[1].split()[0])
+        total_mb = mem.get("MemTotal", 0) / 1024
+        avail_mb = mem.get("MemAvailable", mem.get("MemFree", 0)) / 1024
+        used_mb = max(0, total_mb - avail_mb)
+        if used_mb >= 1024:
+            mem_str = f"{used_mb / 1024:.1f} GiB"
+        else:
+            mem_str = f"{used_mb:.0f} MiB"
+    except Exception:
+        pass
 
     return cpu_str, mem_str
 
