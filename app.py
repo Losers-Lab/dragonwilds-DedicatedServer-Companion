@@ -511,9 +511,9 @@ def index():
               <line x1="50" y1="4" x2="50" y2="96" stroke="#d4af37" stroke-width="0.6" opacity="0.4" />
               <line x1="4" y1="50" x2="50" y2="50" stroke="#d4af37" stroke-width="0.6" opacity="0.4" />
 
-              <!-- Needle Pointer Hand (rotates smoothly around center 50,50) -->
-              <g id="dial-needle-group" style="transform-origin:50px 50px; transform:rotate(180deg); transition:transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);">
-                <path d="M 48.2,50 L 49.3,91 L 50,95 L 50.7,91 L 51.8,50 Z" fill="#facc15" stroke="#78350f" stroke-width="0.7" />
+              <!-- Needle Pointer Hand (rotates smoothly around center 50,50, starts pointing up at 12 o'clock) -->
+              <g id="dial-needle-group" style="transform-origin:50px 50px; transform:rotate(0deg); transition:transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);">
+                <path d="M 48.2,50 L 49.3,9 L 50,5 L 50.7,9 L 51.8,50 Z" fill="#facc15" stroke="#78350f" stroke-width="0.7" />
                 <circle cx="50" cy="50" r="5" fill="#facc15" stroke="#78350f" stroke-width="1.4" />
                 <circle cx="50" cy="50" r="2" fill="#0f172a" />
               </g>

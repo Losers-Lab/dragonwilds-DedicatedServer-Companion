@@ -198,9 +198,9 @@ def scan_all_saves_for_steam_ids():
 DAY_CYCLE_LENGTH_SECONDS = 840.0  # ~14 minutes default day/night cycle in Dragonwilds
 
 
-def calculate_day_cycle(day_count: int, save_mtime: float = 0.0) -> dict:
+def calculate_day_cycle(day_count: float, save_mtime: float = 0.0) -> dict:
     """Calculates smooth in-game day/night cycle progression, angle, and phase."""
-    if not day_count:
+    if day_count is None or not isinstance(day_count, (int, float)) or day_count <= 0:
         return {
             "day_count": 0,
             "progress_percent": 0.0,
@@ -213,8 +213,13 @@ def calculate_day_cycle(day_count: int, save_mtime: float = 0.0) -> dict:
         }
 
     now = time.time()
-    elapsed = max(0.0, now - save_mtime) if save_mtime > 0 else 0.0
-    cycle_pos = (elapsed % DAY_CYCLE_LENGTH_SECONDS) / DAY_CYCLE_LENGTH_SECONDS
+    # Account for fractional day count (e.g. 42.67 means 67% through day 42)
+    # plus wall-clock elapsed time since the save file was written (if save_mtime provided)
+    fractional_sec = (float(day_count) % 1.0) * DAY_CYCLE_LENGTH_SECONDS
+    elapsed_save = max(0.0, now - save_mtime) if save_mtime > 0 else 0.0
+    total_elapsed = (fractional_sec + elapsed_save) % DAY_CYCLE_LENGTH_SECONDS
+
+    cycle_pos = total_elapsed / DAY_CYCLE_LENGTH_SECONDS
     angle_deg = (cycle_pos * 360.0) % 360.0
 
     if 0 <= angle_deg < 45:
@@ -239,12 +244,12 @@ def calculate_day_cycle(day_count: int, save_mtime: float = 0.0) -> dict:
         is_night = True
 
     return {
-        "day_count": day_count,
+        "day_count": int(day_count) if isinstance(day_count, int) or day_count.is_integer() else round(day_count, 2),
         "progress_percent": round(cycle_pos * 100.0, 1),
         "phase": phase,
         "phase_icon": icon,
         "needle_angle_deg": round(angle_deg, 1),
-        "seconds_in_day": round(elapsed % DAY_CYCLE_LENGTH_SECONDS, 1),
+        "seconds_in_day": round(total_elapsed, 1),
         "cycle_duration_seconds": int(DAY_CYCLE_LENGTH_SECONDS),
         "is_night": is_night
     }
