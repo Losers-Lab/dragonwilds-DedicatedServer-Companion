@@ -823,29 +823,32 @@ def index():
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:16px;">
           <div>
             <h2 style="margin:0; font-size:20px; font-weight:bold; color:#f8fafc; display:flex; align-items:center; gap:8px;">
-              <span>⏳</span> Resource & Chest Respawn Tracker
+              <span>⏳</span> World Entities & Live Respawn Tracker
             </h2>
             <div style="font-size:13px; color:#94a3b8; margin-top:2px;">
-              Live telemetry tracking dungeon treasure vaults, 3-day net fishing nodes, high-tier ores & world boss encounters.
+              Objective telemetry tracking live chest respawns from server logs and 770+ game entities directly from server saves.
             </div>
           </div>
           <div style="display:flex; align-items:center; gap:8px;">
-            <span class="data-source-badge live" title="Direct telemetry from server logs & active timers">⚡ Live Telemetry</span>
-            <span class="data-source-badge saved" title="Static cycle world registry">💾 World Registry</span>
+            <span class="data-source-badge live" title="Direct telemetry from server logs (SetRespawnTimer / PerformRespawn)">⚡ Live Telemetry</span>
+            <span class="data-source-badge saved" title="Objective world entity index extracted from latest server .sav file">💾 Server Save Data</span>
           </div>
         </div>
 
         <!-- Filter & Search Toolbar -->
         <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center; justify-content:space-between; background:#0c1322; padding:12px 16px; border-radius:10px; border:1px solid #1c283f;">
           <div class="pill-group" id="respawn-pills">
-            <button class="pill-btn active" onclick="setRespawnCategory('all', this)">All Categories</button>
-            <button class="pill-btn" onclick="setRespawnCategory('Dungeon Chests', this)">Dungeon Chests</button>
-            <button class="pill-btn" onclick="setRespawnCategory('Fishing Nets (3-Day Cycle)', this)">Fishing Nets (3-Day)</button>
-            <button class="pill-btn" onclick="setRespawnCategory('World Bosses & Elites', this)">Bosses & Elites</button>
-            <button class="pill-btn" onclick="setRespawnCategory('High-Tier Mining Ores', this)">Mining Ores</button>
+            <button class="pill-btn active" onclick="setRespawnCategory('all', this)">All Entities</button>
+            <button class="pill-btn" onclick="setRespawnCategory('Chests & Vaults', this)">Chests & Vaults</button>
+            <button class="pill-btn" onclick="setRespawnCategory('Ore & Mineral Veins', this)">Ore Veins</button>
+            <button class="pill-btn" onclick="setRespawnCategory('Mining Rocks & Crystals', this)">Rocks & Crystals</button>
+            <button class="pill-btn" onclick="setRespawnCategory('Fishing Nodes', this)">Fishing Nodes</button>
+            <button class="pill-btn" onclick="setRespawnCategory('Flora & Foraging Spawners', this)">Flora Spawners</button>
+            <button class="pill-btn" onclick="setRespawnCategory('NPCs & Creatures', this)">NPCs & Creatures</button>
+            <button class="pill-btn" onclick="setRespawnCategory('Bosses, Dragons & Monsters', this)">Bosses & Monsters</button>
           </div>
           <div style="display:flex; gap:8px; align-items:center; flex:1; max-width:320px;">
-            <input type="text" id="respawn-search-input" placeholder="Search chests, bosses, nodes..." oninput="filterRespawnsLive()"
+            <input type="text" id="respawn-search-input" placeholder="Search any entity, mob, ore, chest..." oninput="filterRespawnsLive()"
                    style="width:100%; background:#131c2e; border:1px solid #1e2c45; color:#f8fafc; padding:8px 12px; border-radius:8px; font-size:13px; outline:none;">
           </div>
         </div>
@@ -1568,8 +1571,8 @@ function renderRespawns() {
       : '<span style="background:#78350f; color:#fde68a; padding:3px 10px; border-radius:999px; font-size:11.5px; font-weight:bold;">⏳ Respawning</span>';
 
     const sourceBadge = r.source === 'live_log'
-      ? '<span class="data-source-badge live" title="Direct telemetry from server logs">⚡ Live Telemetry</span>'
-      : '<span class="data-source-badge saved" title="Static world cycle registry">💾 World Registry</span>';
+      ? '<span class="data-source-badge live" title="Direct telemetry from server logs (SetRespawnTimer / PerformRespawn)">⚡ Live Telemetry</span>'
+      : '<span class="data-source-badge saved" title="Extracted from server save game file">💾 Save File</span>';
 
     const remainingColor = r.is_ready ? '#34d399' : '#f59e0b';
 
@@ -1581,7 +1584,7 @@ function renderRespawns() {
           <div style="font-family:monospace; font-size:11.5px; color:#64748b; margin-top:2px;">${escapeHtml(r.id)}</div>
         </td>
         <td style="padding:12px 14px; color:#cbd5e1; font-size:13px;">${escapeHtml(r.category)}</td>
-        <td style="padding:12px 14px; color:#94a3b8; font-size:13px;">${escapeHtml(r.duration_formatted)}</td>
+        <td style="padding:12px 14px; color:#94a3b8; font-size:13px;">${escapeHtml(r.duration_formatted || '—')}</td>
         <td style="padding:12px 14px;">
           <strong style="color:${remainingColor}; font-size:13.5px;">${escapeHtml(r.remaining_formatted)}</strong>
           ${!r.is_ready && r.respawn_time ? `<div style="color:#64748b; font-size:11px;">at ${escapeHtml(r.respawn_time)}</div>` : ''}
@@ -1599,7 +1602,6 @@ async function refreshAll() {
   await loadSaveFiles();
   await loadRespawns();
   if (currentTab === 'players') await loadRoster();
-  if (currentTab === 'respawns') await loadRespawns();
   if (currentTab === 'logs' && isLive) {
     await fetchLogs();
   }
