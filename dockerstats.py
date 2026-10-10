@@ -1,9 +1,71 @@
+import os
+import json
 import threading
 import time
 from datetime import datetime, timezone
 import config
 from state import update_field
 from utils import run_cmd, seconds_to_human
+
+
+_last_cpu_idle = None
+_last_cpu_total = None
+
+
+def get_proc_stats():
+    global _last_cpu_idle, _last_cpu_total
+    cpu_str = "0.0%"
+    mem_str = "N/A"
+
+    # 1. Real-time CPU percentage from /proc/stat
+    try:
+        with open("/proc/stat", "r") as f:
+            fields = [float(x) for x in f.readline().split()[1:]]
+            idle = fields[3] + fields[4]
+            total = sum(fields)
+            if _last_cpu_total is not None and (total - _last_cpu_total) > 0:
+                diff_idle = idle - _last_cpu_idle
+                diff_total = total - _last_cpu_total
+                pct = max(0.0, min(100.0, 100.0 * (1.0 - diff_idle / diff_total)))
+                cpu_str = f"{pct:.1f}%"
+            _last_cpu_idle = idle
+            _last_cpu_total = total
+    except Exception:
+        pass
+
+    # 2. Check for host stats file in logs volume if written by host script (e.g. exact game server process RAM)
+    if config.LOG_PATH:
+        host_stats_file = os.path.join(os.path.dirname(config.LOG_PATH), "host_stats.json")
+        if os.path.exists(host_stats_file):
+            try:
+                with open(host_stats_file, "r") as f:
+                    data = json.load(f)
+                    m = data.get("memory")
+                    if m:
+                        mem_str = m
+            except Exception:
+                pass
+
+    # 3. Fallback to system /proc/meminfo RAM
+    if mem_str == "N/A":
+        try:
+            mem = {}
+            with open("/proc/meminfo", "r") as f:
+                for line in f:
+                    parts = line.split(":")
+                    if len(parts) == 2:
+                        mem[parts[0].strip()] = int(parts[1].split()[0])
+            total_mb = mem.get("MemTotal", 0) / 1024
+            avail_mb = mem.get("MemAvailable", mem.get("MemFree", 0)) / 1024
+            used_mb = max(0, total_mb - avail_mb)
+            if used_mb >= 1024:
+                mem_str = f"{used_mb / 1024:.1f} GiB"
+            else:
+                mem_str = f"{used_mb:.0f} MiB"
+        except Exception:
+            pass
+
+    return cpu_str, mem_str
 
 
 def update_stats():
@@ -40,9 +102,10 @@ def update_stats():
             except Exception:
                 update_field("uptime", "Unknown")
     else:
-        # Host-based server monitoring (no container)
-        update_field("cpu", "N/A (Host)")
-        update_field("memory", "N/A (Host)")
+        # Host-based server monitoring: calculate live system CPU and RAM
+        cpu, memory = get_proc_stats()
+        update_field("cpu", cpu)
+        update_field("memory", memory)
 
         # Compute uptime from server log start timestamp
         try:
