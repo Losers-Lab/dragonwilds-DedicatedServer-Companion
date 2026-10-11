@@ -122,6 +122,16 @@ class TestWorldActors(unittest.TestCase):
         self.assertEqual(extreme["x"], 20.0)
         self.assertEqual(extreme["y"], 980.0)
 
+        # 6. Defensive Fallback on None or Invalid Inputs
+        none_coords = world_to_map_coords(None, None)
+        self.assertEqual(none_coords, {"x": 500.0, "y": 500.0})
+        partial_none = world_to_map_coords(6000.0, None)
+        self.assertEqual(partial_none, {"x": 500.0, "y": 500.0})
+        invalid_type = world_to_map_coords("invalid", 187000.0)
+        self.assertEqual(invalid_type, {"x": 500.0, "y": 500.0})
+        none_z = world_to_map_coords(6000.0, 187000.0, None)
+        self.assertAlmostEqual(none_z["x"], 210.0, places=1)
+
     def test_parse_lvl_actors(self):
         actors = parse_lvl_actors(self.lvl_path)
         self.assertEqual(len(actors), 7)

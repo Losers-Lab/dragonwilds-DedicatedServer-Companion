@@ -14,6 +14,7 @@ import os
 import re
 import glob
 import time
+import zlib
 from threading import Lock
 from datetime import datetime, timezone
 from config import LOGS_DIR, SAVES_DIR
@@ -137,7 +138,7 @@ class RespawnTracker:
             "Umbral Sands": {"x": 680.0, "y": 580.0},
             "Overworld": {"x": 350.0, "y": 520.0}
         }
-        h = abs(hash(short_id))
+        h = zlib.crc32(short_id.encode("utf-8"))
         ox = ((h % 41) - 20) * 1.5
         oy = (((h // 41) % 41) - 20) * 1.5
         base = zone_bases.get(zone, {"x": 350.0, "y": 520.0})
@@ -352,7 +353,10 @@ class RespawnTracker:
                     "duration_formatted": self.format_time_remaining(chest.get("duration_seconds", 0)),
                     "remaining_formatted": "Ready to Loot" if is_ready else self.format_time_remaining(remaining),
                     "source": "live_log",
-                    "is_ready": is_ready
+                    "is_ready": is_ready,
+                    "world_pos": chest.get("world_pos"),
+                    "map_coords": chest.get("map_coords"),
+                    "cell": chest.get("cell")
                 })
 
             world_entities = self.scan_save_world_entities()

@@ -22,6 +22,7 @@ import glob
 import json
 import re
 import time
+import zlib
 from threading import Lock
 from config import SAVES_DIR
 
@@ -167,7 +168,7 @@ def get_campaign_status(saves_dir: str = SAVES_DIR) -> dict:
                 world_pos = None
                 cell = "Overworld Save Chunk"
                 source = "save_actor_registry"
-                h = abs(hash(short_id))
+                h = zlib.crc32(short_id.encode("utf-8"))
                 ox = ((h % 41) - 20) * 1.5
                 oy = (((h // 41) % 41) - 20) * 1.5
                 base = zone_bases.get(zone, {"x": 350.0, "y": 520.0})

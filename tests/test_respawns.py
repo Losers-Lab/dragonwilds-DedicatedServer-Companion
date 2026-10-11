@@ -69,6 +69,29 @@ class TestRespawns(unittest.TestCase):
                 "chest" in c["name"].lower() or "chest" in c["id"].lower() or "chest" in c["category"].lower()
             )
 
+    def test_live_respawns_coordinates_inclusion(self):
+        import tempfile
+        import shutil
+        import os
+
+        temp_dir = tempfile.mkdtemp()
+        try:
+            log_path = os.path.join(temp_dir, "RSDragonwilds.log")
+            with open(log_path, "w", encoding="utf-8") as f:
+                f.write('[2026.10.10-19.05.28:209][  0]LogChests: [DedicatedServer] SetRespawnTimer(): Chest "BP_Dungeon_Treasure_Chest_BM_Cook_World_Cache_C_UAID_00BE4395530E7E0C02_1510875401" set to respawn +5.00:00:00.000 from now\n')
+
+            tracker = RespawnTracker(logs_dir=temp_dir, saves_dir=temp_dir)
+            items = tracker.get_respawns()
+            live = [x for x in items if x.get("source") == "live_log"]
+            self.assertEqual(len(live), 1)
+            self.assertIn("map_coords", live[0])
+            self.assertIsNotNone(live[0]["map_coords"])
+            self.assertGreaterEqual(live[0]["map_coords"]["x"], 20.0)
+            self.assertLessEqual(live[0]["map_coords"]["x"], 980.0)
+            self.assertIn("cell", live[0])
+        finally:
+            shutil.rmtree(temp_dir)
+
 
 if __name__ == "__main__":
     unittest.main()

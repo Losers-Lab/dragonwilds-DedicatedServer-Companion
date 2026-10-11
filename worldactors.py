@@ -30,12 +30,22 @@ CALIBRATION_SCALE_X = 0.0015
 CALIBRATION_SCALE_Y = 0.0018
 
 
-def world_to_map_coords(x: float, y: float, z: float = 0.0) -> Dict[str, float]:
+def world_to_map_coords(x: Any, y: Any, z: Any = 0.0) -> Dict[str, float]:
     """
     Convert Unreal Engine world units (cm) to Ashenfall 1000x1000 map coordinates.
     Correctly maps global overworld coordinates and resolves subterranean instanced dungeons
     (Brynmoore Catacombs, Kalphite Queen subterranean hive) back to their canonical surface regions.
+    Safely falls back to map center (500.0, 500.0) on None or non-numeric arguments.
     """
+    try:
+        if x is None or y is None:
+            return {"x": 500.0, "y": 500.0}
+        x = float(x)
+        y = float(y)
+        z = float(z) if z is not None else 0.0
+    except (TypeError, ValueError):
+        return {"x": 500.0, "y": 500.0}
+
     # 1. Kalphite Queen Arena / Subterranean Desert Hive (Z < -20000, X < -350000)
     # Lair is anchored beneath Dunes of Uzer / Umbral Sands (Canvas: 650, 620)
     if x < -350000.0 and z < -20000.0:
