@@ -13,6 +13,7 @@ import glob
 import re
 import json
 from config import SAVES_DIR
+from item_resolver import resolve_item
 
 _storage_cache = None
 _storage_cache_mtime = 0
@@ -171,9 +172,14 @@ def parse_storage_data(saves_dir: str = SAVES_DIR, save_filename: str = None) ->
                         durability = slot_data.get("Durability")
                         upgrades = slot_data.get("NumUpgradesApplied") or 0
 
+                        item_info = resolve_item(item_id)
+
                         slot_entry = {
                             "slot": int(slot_idx_str),
                             "item_id": item_id,
+                            "name": item_info.get("name") or item_id,
+                            "raw_id": item_info.get("raw_id") or item_id,
+                            "category": item_info.get("category") or "General",
                             "count": count,
                             "durability": durability,
                             "upgrades": upgrades,
@@ -184,6 +190,9 @@ def parse_storage_data(saves_dir: str = SAVES_DIR, save_filename: str = None) ->
                         if item_id not in items_map:
                             items_map[item_id] = {
                                 "item_id": item_id,
+                                "name": item_info.get("name") or item_id,
+                                "raw_id": item_info.get("raw_id") or item_id,
+                                "category": item_info.get("category") or "General",
                                 "total_count": 0,
                                 "container_count": 0,
                                 "containers": [],
@@ -234,7 +243,7 @@ def parse_storage_data(saves_dir: str = SAVES_DIR, save_filename: str = None) ->
 
 
 def search_stored_items(query: str = "", saves_dir: str = SAVES_DIR, save_filename: str = None) -> list:
-    """Searches server-wide stored items by item id, container name, or owner."""
+    """Searches server-wide stored items by item name, raw id, item id, category, container name, or owner."""
     data = parse_storage_data(saves_dir=saves_dir, save_filename=save_filename)
     items = data.get("items", [])
     if not query:
@@ -243,8 +252,11 @@ def search_stored_items(query: str = "", saves_dir: str = SAVES_DIR, save_filena
     q = query.lower().strip()
     filtered = []
     for it in items:
-        # Match item ID
-        if q in it["item_id"].lower():
+        # Match item name, raw ID, GUID, or category
+        if (q in it.get("name", "").lower() or
+            q in it.get("raw_id", "").lower() or
+            q in it["item_id"].lower() or
+            q in it.get("category", "").lower()):
             filtered.append(it)
             continue
         # Match container name or owner

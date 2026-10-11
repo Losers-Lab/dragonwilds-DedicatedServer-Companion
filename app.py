@@ -1244,7 +1244,7 @@ def index():
         </div>
 
         <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-          <input type="text" id="items-search-input" placeholder="Search stored items by ID, container name, or owner (e.g. Arham, Mango, Chest)..." oninput="searchStorageLive()"
+          <input type="text" id="items-search-input" placeholder="Search stored items by name, category, container, or owner (e.g. Ash Logs, Rune, Dwellberry, Mango)..." oninput="searchStorageLive()"
                  style="flex:1; min-width:280px; background:#131c2e; border:1px solid #1e2c45; color:#f8fafc; padding:10px 14px; border-radius:8px; font-size:13.5px; outline:none;">
           <div class="pill-group">
             <button class="pill-btn active" id="btn-tab-stored-items" onclick="switchStorageTab('items')">Stored Items</button>
@@ -1258,7 +1258,7 @@ def index():
         <table class="table" style="width:100%; text-align:left; border-collapse:collapse;">
           <thead>
             <tr style="border-bottom:1px solid #1c283f; color:#94a3b8; font-size:12px; text-transform:uppercase;">
-              <th>Item ID / Name</th>
+              <th>Item Name / Identifier</th>
               <th>Total Stored Count</th>
               <th>Containers Present In</th>
               <th>Locations & Quantities</th>
@@ -2427,10 +2427,22 @@ function renderStoredItems() {
       ? `<span style="font-size:11px; color:#94a3b8; margin-left:4px;">+${conts.length - 4} more units</span>` 
       : '';
 
+    const itemName = it.name || it.item_id;
+    const itemSub = (it.raw_id && it.raw_id !== it.name) ? it.raw_id : it.item_id;
+    const catBadge = it.category && it.category !== 'General' 
+      ? `<span style="background:#1e293b; color:#94a3b8; border:1px solid #334155; font-size:10px; padding:1px 6px; border-radius:4px; font-weight:normal; letter-spacing:0.3px;">${escapeHtml(it.category)}</span>` 
+      : '';
+
     return `
       <tr style="border-bottom:1px solid #141f33;">
-        <td style="padding:10px 14px; font-family:monospace; color:#f8fafc; font-size:12.5px;">
-          <strong style="color:#38bdf8;">${escapeHtml(it.item_id)}</strong>
+        <td style="padding:10px 14px;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <strong style="color:#f8fafc; font-size:13.5px;">${escapeHtml(itemName)}</strong>
+            ${catBadge}
+          </div>
+          <div style="font-family:monospace; color:#64748b; font-size:11px; margin-top:2px;">
+            ${escapeHtml(itemSub)}
+          </div>
         </td>
         <td style="padding:10px 14px; font-weight:bold; color:#10b981; font-size:14px;">
           ${(it.total_count || 0).toLocaleString()}
@@ -2516,7 +2528,7 @@ function inspectContainer(containerId) {
             <thead>
               <tr style="border-bottom:1px solid #1e293b; color:#94a3b8; font-size:11px; text-transform:uppercase;">
                 <th style="padding:8px;">Slot</th>
-                <th style="padding:8px;">Item ID</th>
+                <th style="padding:8px;">Item Name / Identifier</th>
                 <th style="padding:8px;">Count</th>
                 <th style="padding:8px;">Durability</th>
               </tr>
@@ -2525,7 +2537,15 @@ function inspectContainer(containerId) {
               ${slots.length === 0 ? '<tr><td colspan="4" style="text-align:center; padding:18px; color:#64748b;">Container is empty</td></tr>' : slots.map(s => `
                 <tr style="border-bottom:1px solid #141f33;">
                   <td style="padding:8px; color:#94a3b8; font-family:monospace;">#${s.slot}</td>
-                  <td style="padding:8px; font-family:monospace; color:#38bdf8; font-size:12px;">${escapeHtml(s.item_id)}</td>
+                  <td style="padding:8px;">
+                    <div style="font-weight:600; color:#38bdf8; font-size:13px; display:flex; align-items:center; gap:6px;">
+                      <span>${escapeHtml(s.name || s.item_id)}</span>
+                      ${s.category && s.category !== 'General' ? `<span style="background:#1e293b; color:#94a3b8; border:1px solid #334155; font-size:9.5px; padding:0 5px; border-radius:3px;">${escapeHtml(s.category)}</span>` : ''}
+                    </div>
+                    <div style="font-size:10.5px; color:#64748b; font-family:monospace; margin-top:2px;">
+                      ${escapeHtml(s.raw_id && s.raw_id !== s.name ? s.raw_id : s.item_id)}
+                    </div>
+                  </td>
                   <td style="padding:8px; font-weight:bold; color:#10b981;">x${s.count || 1}</td>
                   <td style="padding:8px; color:#cbd5e1; font-size:12px;">${s.durability !== undefined && s.durability !== null ? s.durability : '—'}</td>
                 </tr>
