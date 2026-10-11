@@ -94,7 +94,7 @@ def get_campaign_status(saves_dir: str = SAVES_DIR) -> dict:
         with open(save_path, "rb") as f:
             data = f.read()
 
-        active_save_name = os.path.basename(os.path.dirname(save_path)) or os.path.basename(save_path)
+        active_save_name = os.path.basename(save_path)
 
         # 1. Parse Embedded Progress JSON Block
         progress_json = {}

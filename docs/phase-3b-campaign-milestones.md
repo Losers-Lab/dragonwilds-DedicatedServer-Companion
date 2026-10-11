@@ -24,26 +24,28 @@ Phase 3B completes the world mapping and campaign milestone tracking for the Dra
   - Returns JSON object with progression counts and lists:
     ```json
     {
-      "shrines_unlocked": ["Shrine_Overworld_01"],
-      "spells_unlocked": ["Spell_Fireball", ...],
-      "buildings_unlocked": [...],
-      "recipes_unlocked": [...],
-      "killed_once_ais": [...],
+      "summary": {
+        "shrines_unlocked": 1,
+        "spells_unlocked": 14,
+        "buildings_unlocked": 97,
+        "recipes_unlocked": 176,
+        "elites_slain": 10,
+        "gravestones_found": 17,
+        "camps_found": 2,
+        "quest_triggers": 31,
+        "active_world_save": "Hardcore Losers.sav"
+      },
+      "shrines": ["Shrine_Overworld_01"],
+      "spells": ["Spell_Fireball"],
+      "buildings": ["BP_WoodWall_C"],
+      "recipes": ["Recipe_IronSword_C"],
+      "elites_slain": ["AI_DireWolf_Boss_C"],
       "death_markers": [
-        {"id": "BP_PlayerGraveyard_8Slots_C_UAID_...", "name": "Player Gravestone #1", "zone": "Brynmoore", "index": 1}
+        {"id": "BP_PlayerGraveyard_8Slots_C_UAID_...", "short_id": "UAID_...", "name": "Player Gravestone #1", "zone": "Brynmoore", "index": 1}
       ],
       "camps": [
         {"name": "Settlement Bedroll #1", "zone": "Courtyard", "index": 1}
-      ],
-      "totals": {
-        "shrines": 1,
-        "spells": 14,
-        "buildings": 97,
-        "recipes": 176,
-        "elites_slain": 10,
-        "gravestones": 17,
-        "camps": 2
-      }
+      ]
     }
     ```
 
