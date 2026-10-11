@@ -38,6 +38,20 @@ class TestRegionResolution(unittest.TestCase):
         self.assertNotEqual(regions_copy2[0]["name"], "MUTATED")
         self.assertEqual(CANONICAL_MAP_REGIONS[0]["name"], "Al Kharid Oasis")
 
+    def test_canonical_regions_coordinates_and_lore(self):
+        regions = get_canonical_regions()
+        for r in regions:
+            self.assertIn("x", r)
+            self.assertIn("y", r)
+            self.assertIn("lore", r)
+            self.assertIsInstance(r["x"], int)
+            self.assertIsInstance(r["y"], int)
+            self.assertGreaterEqual(r["x"], 0)
+            self.assertLessEqual(r["x"], 1000)
+            self.assertGreaterEqual(r["y"], 0)
+            self.assertLessEqual(r["y"], 1000)
+            self.assertTrue(len(r["lore"]) > 10)
+
 
 if __name__ == "__main__":
     unittest.main()

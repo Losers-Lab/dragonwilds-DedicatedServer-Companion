@@ -20,6 +20,7 @@ Extracts objective boss and live world events:
 import os
 import glob
 import re
+from datetime import datetime, timezone
 from config import SAVES_DIR, LOG_PATH
 
 
@@ -150,8 +151,15 @@ def get_live_world_events(log_path: str = LOG_PATH, max_events: int = 50) -> lis
             raw_ts = ts_match.group(1)
             body = ts_match.group(2)
 
-            # Format timestamp nicely (YYYY-MM-DD HH:MM:SS)
-            formatted_ts = raw_ts.replace(".", "-")[:10] + " " + raw_ts[11:19].replace(".", ":")
+            # Format timestamp nicely with UTC epoch and ISO
+            formatted_ts = raw_ts.replace(".", "-")[:10] + " " + raw_ts[11:19].replace(".", ":") + " UTC"
+            try:
+                base_dt = datetime.strptime(raw_ts[:19], "%Y.%m.%d-%H.%M.%S").replace(tzinfo=timezone.utc)
+                event_epoch = base_dt.timestamp()
+                event_iso = base_dt.isoformat()
+            except Exception:
+                event_epoch = 0.0
+                event_iso = None
 
             # 1. Base Raid & World Wave Events
             if "LogWorldEventAIWaveSpawning:" in body:
@@ -160,6 +168,8 @@ def get_live_world_events(log_path: str = LOG_PATH, max_events: int = 50) -> lis
                 msg = body.split("LogWorldEventAIWaveSpawning:")[1].strip()
                 events.append({
                     "timestamp": formatted_ts,
+                    "epoch": event_epoch,
+                    "iso": event_iso,
                     "type": event_type,
                     "badge": badge,
                     "message": msg,
@@ -173,6 +183,8 @@ def get_live_world_events(log_path: str = LOG_PATH, max_events: int = 50) -> lis
                 msg = body.split("EvadeAttack:")[1].strip()
                 events.append({
                     "timestamp": formatted_ts,
+                    "epoch": event_epoch,
+                    "iso": event_iso,
                     "type": event_type,
                     "badge": badge,
                     "message": msg,
@@ -186,6 +198,8 @@ def get_live_world_events(log_path: str = LOG_PATH, max_events: int = 50) -> lis
                 msg = body.split("LogChests:")[1].strip()
                 events.append({
                     "timestamp": formatted_ts,
+                    "epoch": event_epoch,
+                    "iso": event_iso,
                     "type": event_type,
                     "badge": badge,
                     "message": msg,
@@ -202,6 +216,8 @@ def get_live_world_events(log_path: str = LOG_PATH, max_events: int = 50) -> lis
                     player_name = m.group(1)
                 events.append({
                     "timestamp": formatted_ts,
+                    "epoch": event_epoch,
+                    "iso": event_iso,
                     "type": event_type,
                     "badge": badge,
                     "message": f"Player '{player_name}' joined server world",

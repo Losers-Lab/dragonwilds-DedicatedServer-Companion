@@ -422,6 +422,9 @@ def index():
     </div>
     <div class="nav">
       <a class="nav-link active" data-tab="overview" onclick="setTab('overview')">Overview</a>
+      <a class="nav-link" data-tab="map" onclick="setTab('map')">
+        <span>World Map</span>
+      </a>
       <a class="nav-link" data-tab="respawns" onclick="setTab('respawns')">
         <span>Respawns</span>
         <span class="badge" id="nav-respawns-count">0</span>
@@ -520,6 +523,7 @@ def index():
     <!-- Mobile Navigation -->
     <div class="mobile-nav">
       <a class="mobile-link active" data-tab="overview" onclick="setTab('overview')">Overview</a>
+      <a class="mobile-link" data-tab="map" onclick="setTab('map')">Map</a>
       <a class="mobile-link" data-tab="respawns" onclick="setTab('respawns')">Respawns</a>
       <a class="mobile-link" data-tab="farming" onclick="setTab('farming')">Agriculture</a>
       <a class="mobile-link" data-tab="items" onclick="setTab('items')">Storage</a>
@@ -919,6 +923,99 @@ def index():
       </div>
     </div>
 
+    <!-- VIEW: INTERACTIVE WORLD MAP -->
+    <div id="view-map" style="display:none;">
+      <div class="card" style="margin-bottom:20px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:14px;">
+          <div>
+            <h2 style="margin:0; font-size:20px; font-weight:bold; color:#f8fafc; display:flex; align-items:center; gap:8px;">
+              <span>🗺️</span> Interactive World Map & Territorial Radar
+            </h2>
+            <div style="font-size:13px; color:#94a3b8; margin-top:2px;">
+              Geographical radar plotting all 31 canonical game regions, live chest respawns, player landmarks, and regional weather.
+            </div>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span class="data-source-badge live" title="Real-time territorial coordinates & telemetry">⚡ Live Telemetry</span>
+            <span class="data-source-badge saved" title="Extracted from world save snapshots">💾 Save Data</span>
+          </div>
+        </div>
+
+        <!-- Map Layer Toggles & Search -->
+        <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:space-between;">
+          <div class="pill-group" id="map-layer-pills">
+            <button class="pill-btn active" id="btn-layer-all" onclick="toggleMapLayer('all', this)">All Layers</button>
+            <button class="pill-btn" id="btn-layer-chests" onclick="toggleMapLayer('chests', this)">Chests & Caches</button>
+            <button class="pill-btn" id="btn-layer-bosses" onclick="toggleMapLayer('bosses', this)">Boss Arenas</button>
+            <button class="pill-btn" id="btn-layer-weather" onclick="toggleMapLayer('weather', this)">Regional Weather</button>
+          </div>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <input type="text" id="map-search-input" placeholder="Find region, chest, or arena on map..." oninput="filterMapMarkersLive()"
+                   style="background:#131c2e; border:1px solid #1e2c45; color:#f8fafc; padding:8px 12px; border-radius:8px; font-size:13px; outline:none; min-width:260px;">
+          </div>
+        </div>
+      </div>
+
+      <!-- Map Canvas & Detail Split Card -->
+      <div class="card" style="padding:16px;">
+        <div style="display:grid; grid-template-columns: 2fr 1fr; gap:16px;" class="map-split-container">
+          <!-- Canvas Visualizer -->
+          <div style="background:#070b14; border:1px solid #1e2c45; border-radius:12px; position:relative; overflow:hidden; min-height:540px; display:flex; flex-direction:column; align-items:center; justify-content:center;">
+            <canvas id="world-map-canvas" width="800" height="540" style="width:100%; height:100%; cursor:grab;"></canvas>
+            
+            <!-- Zoom & Pan Overlay Controls -->
+            <div style="position:absolute; bottom:14px; right:14px; display:flex; gap:6px; background:#0f172a; padding:4px 6px; border-radius:8px; border:1px solid #1e293b; z-index:10;">
+              <button onclick="zoomMap(1.2)" style="background:#1e293b; color:#f8fafc; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-weight:bold;">+</button>
+              <button onclick="zoomMap(0.8)" style="background:#1e293b; color:#f8fafc; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-weight:bold;">−</button>
+              <button onclick="resetMap()" style="background:#1e293b; color:#94a3b8; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:11px;">Reset</button>
+            </div>
+
+            <!-- Legend Overlay -->
+            <div style="position:absolute; top:14px; left:14px; background:rgba(15, 23, 42, 0.85); padding:8px 12px; border-radius:8px; border:1px solid #1e293b; font-size:11.5px; z-index:10;">
+              <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">
+                <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#38bdf8;"></span>
+                <span style="color:#cbd5e1;">Canonical Region Hub</span>
+              </div>
+              <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">
+                <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#10b981;"></span>
+                <span style="color:#cbd5e1;">Loot Ready</span>
+              </div>
+              <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">
+                <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#f59e0b;"></span>
+                <span style="color:#cbd5e1;">Respawning Timer</span>
+              </div>
+              <div style="display:flex; align-items:center; gap:6px;">
+                <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#ef4444;"></span>
+                <span style="color:#cbd5e1;">Boss Arena Gate</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Region & Marker Inspector Panel -->
+          <div style="background:#0c1322; border:1px solid #1c283f; border-radius:12px; padding:16px; display:flex; flex-direction:column;">
+            <div style="border-bottom:1px solid #1e2c45; padding-bottom:10px; margin-bottom:12px;">
+              <h3 id="map-inspector-title" style="margin:0; color:#f8fafc; font-size:16px;">Central Ashenfall (Overworld)</h3>
+              <div id="map-inspector-sub" style="font-size:12px; color:#94a3b8; margin-top:2px;">Biome: Plains & Heartland | Weather: Rain Light</div>
+            </div>
+            
+            <div id="map-inspector-body" style="flex:1; overflow-y:auto; font-size:13px; color:#cbd5e1;">
+              <div style="margin-bottom:12px;">
+                <div style="font-weight:600; color:#38bdf8; margin-bottom:4px;">Active Telemetry & Loot Caches</div>
+                <div id="map-inspector-chests" style="color:#94a3b8; font-size:12px;">Click any region or marker to inspect localized respawn timers, dungeon caches, and boss gates.</div>
+              </div>
+
+              <div style="margin-top:14px; border-top:1px solid #1e2c45; padding-top:10px;">
+                <div style="font-weight:600; color:#e2e8f0; margin-bottom:4px;">Current Weather & Lore</div>
+                <div id="map-inspector-lore" style="font-size:12px; color:#94a3b8; line-height:1.5;">
+                  The central expanse of Dragonwilds where adventurers establish foundations, access initial trial stones, and venture outward to outer territories.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- VIEW 6: RESPAWNS TRACKER -->
     <div id="view-respawns" style="display:none;">
       <div class="card" style="margin-bottom:20px;">
@@ -1243,6 +1340,41 @@ function escapeHtml(str) {
     .replace(/'/g, '&#39;');
 }
 
+function parseToLocalDate(val) {
+  if (!val) return null;
+  if (typeof val === 'number') {
+    return new Date(val * 1000);
+  }
+  if (typeof val === 'string') {
+    let s = val.trim();
+    if (s.endsWith(' UTC')) {
+      s = s.replace(' UTC', 'Z').replace(' ', 'T');
+      return new Date(s);
+    }
+    if (s.includes('T') || s.endsWith('Z')) {
+      return new Date(s);
+    }
+    if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/.test(s)) {
+      return new Date(s.replace(' ', 'T') + 'Z');
+    }
+    return new Date(s);
+  }
+  return new Date(val);
+}
+
+function formatLocalDateTime(val) {
+  const d = parseToLocalDate(val);
+  if (!d || isNaN(d.getTime())) return String(val || '—');
+  return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' });
+}
+
+function formatLocalDate(val) {
+  const d = parseToLocalDate(val);
+  if (!d || isNaN(d.getTime())) return String(val || '—');
+  return d.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) + ' ' +
+         d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+}
+
 let currentTab = 'overview';
 
 // State caches
@@ -1272,6 +1404,7 @@ function setTab(tab) {
   const title = document.getElementById('page-title');
   const subtitle = document.getElementById('page-subtitle');
   const vOverview = document.getElementById('view-overview');
+  const vMap = document.getElementById('view-map');
   const vLogs = document.getElementById('view-logs');
   const vPlayers = document.getElementById('view-players');
   const vBackups = document.getElementById('view-backups');
@@ -1284,6 +1417,7 @@ function setTab(tab) {
   const vBosses = document.getElementById('view-bosses');
 
   vOverview.style.display = 'none';
+  if (vMap) vMap.style.display = 'none';
   vLogs.style.display = 'none';
   vPlayers.style.display = 'none';
   if (vBackups) vBackups.style.display = 'none';
@@ -1298,6 +1432,11 @@ function setTab(tab) {
     title.innerText = 'Overview';
     subtitle.innerText = 'Real-time overview of your Dragonwilds server';
     vOverview.style.display = 'block';
+  } else if (tab === 'map') {
+    title.innerText = 'Interactive World Map';
+    subtitle.innerText = 'Territorial radar plotting canonical regions, chest respawn timers & boss gates';
+    if (vMap) vMap.style.display = 'block';
+    initWorldMap();
   } else if (tab === 'respawns') {
     title.innerText = 'Respawn Tracker';
     subtitle.innerText = 'Active timers for dungeon chests, fishing nets, world bosses & high-tier ores';
@@ -1697,9 +1836,9 @@ function renderEvents() {
     }
     return items.map(e => `
       <div class="event-item">
-        <span class="event-time">[${e.timestamp}]</span>
+        <span class="event-time" title="${escapeHtml(formatLocalDate(e.epoch || e.iso || e.full_time || e.timestamp))}">[${escapeHtml(formatLocalDateTime(e.epoch || e.iso || e.timestamp))}]</span>
         <span class="event-tag ${e.category}">[${e.category}]</span>
-        <span class="event-msg">${e.message}</span>
+        <span class="event-msg">${escapeHtml(e.message)}</span>
       </div>
     `).join('');
   };
@@ -1956,14 +2095,18 @@ function renderRespawns() {
       <tr style="border-bottom:1px solid #141f33;">
         <td style="padding:12px 14px;">${statusBadge}</td>
         <td style="padding:12px 14px;">
-          <div style="font-weight:600; color:#f8fafc; font-size:14px;">${escapeHtml(r.name)}</div>
+          <div style="font-weight:600; color:#f8fafc; font-size:14px; display:flex; align-items:center; gap:8px;">
+            <span>${escapeHtml(r.name)}</span>
+            ${r.zone ? `<span style="font-size:10.5px; background:#1e293b; color:#38bdf8; padding:1px 6px; border-radius:4px; font-weight:normal;">${escapeHtml(r.zone)}</span>` : ''}
+            <button onclick="switchTabToMapMarker('${escapeHtml(r.id)}')" style="background:transparent; border:1px solid #1e3a8a; color:#38bdf8; font-size:10px; padding:1px 6px; border-radius:4px; cursor:pointer;" title="View location on World Map">📍 Map</button>
+          </div>
           <div style="font-family:monospace; font-size:11.5px; color:#64748b; margin-top:2px;">${escapeHtml(r.id)}</div>
         </td>
         <td style="padding:12px 14px; color:#cbd5e1; font-size:13px;">${escapeHtml(r.category)}</td>
         <td style="padding:12px 14px; color:#94a3b8; font-size:13px;">${escapeHtml(r.duration_formatted || '—')}</td>
         <td style="padding:12px 14px;">
           <strong style="color:${remainingColor}; font-size:13.5px;">${escapeHtml(r.remaining_formatted)}</strong>
-          ${!r.is_ready && r.respawn_time ? `<div style="color:#64748b; font-size:11px;">at ${escapeHtml(r.respawn_time)}</div>` : ''}
+          ${!r.is_ready && (r.respawn_epoch || r.respawn_time) ? `<div style="color:#64748b; font-size:11px;" title="${escapeHtml(formatLocalDate(r.respawn_epoch || r.respawn_time))}">Ready at ${escapeHtml(formatLocalDateTime(r.respawn_epoch || r.respawn_time))}</div>` : ''}
         </td>
         <td style="padding:12px 14px;">${sourceBadge}</td>
       </tr>
@@ -1997,25 +2140,61 @@ function renderFarming() {
   if (elTrees) elTrees.innerText = (s.total_growing_trees || 0) + (s.total_saplings || 0);
   if (elCrops) elCrops.innerText = s.total_crops || 0;
 
-  // 1. Render Active In-World Crops & Herbs
+  // 1. Render Active In-World Crops & Herbs with Collapsible Plot Accordion
   const cropsBody = document.getElementById('crops-table-body');
   if (cropsBody) {
     const crops = farmingData.crops || [];
     if (crops.length === 0) {
       cropsBody.innerHTML = '<tr><td colspan="4" style="color:#94a3b8; text-align:center; padding:20px;">No wild or planted crop instances found in active save file.</td></tr>';
     } else {
-      cropsBody.innerHTML = crops.map(c => `
-        <tr style="border-bottom:1px solid #141f33;">
-          <td style="padding:12px 14px; font-weight:600; color:#f8fafc;">${escapeHtml(c.name)}</td>
-          <td style="padding:12px 14px; color:#94a3b8; font-size:13px;">${escapeHtml(c.category)}</td>
-          <td style="padding:12px 14px; font-weight:bold; color:#38bdf8;">${c.count || 0}</td>
-          <td style="padding:12px 14px;">
-            <span style="background:#064e3b; color:#34d399; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:600;">
-              ${escapeHtml(c.status || 'Active')}
-            </span>
-          </td>
-        </tr>
-      `).join('');
+      cropsBody.innerHTML = crops.map((c, cIdx) => {
+        const plots = c.plots || [];
+        const hasPlots = plots.length > 0;
+        const accordionId = `crop-plots-${cIdx}`;
+
+        const plotsHtml = hasPlots ? `
+          <tr id="${accordionId}" style="display:none; background:#0b111e; border-bottom:1px solid #1c283f;">
+            <td colspan="4" style="padding:14px 18px;">
+              <div style="font-size:12px; font-weight:600; color:#38bdf8; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px;">
+                Distinct In-World Plot Instances (${plots.length} unique locations in save)
+              </div>
+              <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:8px;">
+                ${plots.map(p => `
+                  <div style="background:#131d2e; border:1px solid #1e2c45; padding:8px 10px; border-radius:6px; display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                      <div style="font-weight:600; color:#f8fafc; font-size:12px;">Plot #${p.plot_number} (${escapeHtml(p.zone)})</div>
+                      <div style="font-family:monospace; font-size:10.5px; color:#64748b;" title="${escapeHtml(p.instance_id)}">...${escapeHtml(p.short_id.slice(-14))}</div>
+                    </div>
+                    <span style="background:#064e3b; color:#34d399; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:600;">
+                      ${escapeHtml(p.status)}
+                    </span>
+                  </div>
+                `).join('')}
+              </div>
+            </td>
+          </tr>
+        ` : '';
+
+        return `
+          <tr style="border-bottom:1px solid #141f33; cursor:pointer;" onclick="toggleCropAccordion('${accordionId}', this)">
+            <td style="padding:12px 14px; font-weight:600; color:#f8fafc; display:flex; align-items:center; gap:8px;">
+              <span id="chevron-${accordionId}" style="color:#38bdf8; font-size:12px; transition:transform 0.2s;">▶</span>
+              <span>${escapeHtml(c.name)}</span>
+            </td>
+            <td style="padding:12px 14px; color:#94a3b8; font-size:13px;">${escapeHtml(c.category)}</td>
+            <td style="padding:12px 14px; font-weight:bold; color:#38bdf8;">
+              ${c.count || 0}
+              ${hasPlots ? `<span style="font-size:11px; font-weight:normal; color:#64748b; margin-left:4px;">(${plots.length} plots)</span>` : ''}
+            </td>
+            <td style="padding:12px 14px;">
+              <span style="background:#064e3b; color:#34d399; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:600;">
+                ${escapeHtml(c.status || 'Active')}
+              </span>
+            </td>
+          </tr>
+          ${plotsHtml}
+        `;
+      }).join('');
     }
   }
 
@@ -2044,6 +2223,20 @@ function renderFarming() {
       </td>
     </tr>
   `).join('');
+}
+
+function toggleCropAccordion(accordionId, trEl) {
+  const targetTr = document.getElementById(accordionId);
+  const chevron = document.getElementById(`chevron-${accordionId}`);
+  if (!targetTr) return;
+
+  if (targetTr.style.display === 'none' || !targetTr.style.display) {
+    targetTr.style.display = 'table-row';
+    if (chevron) chevron.style.transform = 'rotate(90deg)';
+  } else {
+    targetTr.style.display = 'none';
+    if (chevron) chevron.style.transform = 'rotate(0deg)';
+  }
 }
 
 // ----------------- STORAGE & STORED ITEM TRACKER -----------------
@@ -2340,7 +2533,7 @@ function renderLiveWorldEvents() {
 
     return `
       <tr style="border-bottom:1px solid #141f33;">
-        <td style="padding:10px 14px; font-family:monospace; color:#94a3b8; font-size:12px; white-space:nowrap;">${escapeHtml(ev.timestamp)}</td>
+        <td style="padding:10px 14px; font-family:monospace; color:#94a3b8; font-size:12px; white-space:nowrap;" title="${escapeHtml(formatLocalDate(ev.epoch || ev.iso || ev.timestamp))}">${escapeHtml(formatLocalDateTime(ev.epoch || ev.iso || ev.timestamp))}</td>
         <td style="padding:10px 14px;">
           <span style="${typeStyle} padding:2px 8px; border-radius:6px; font-size:11px; font-weight:600;">
             ${escapeHtml(ev.type)}
@@ -2355,12 +2548,625 @@ function renderLiveWorldEvents() {
   }).join('');
 }
 
+// ----------------- INTERACTIVE WORLD MAP & RADAR -----------------
+let mapRegions = [];
+let mapRespawns = [];
+let mapBosses = [];
+let mapWeather = [];
+let mapInitialized = false;
+let mapSelectedTarget = null;
+let mapFilterLayer = 'all';
+let mapSearchQuery = '';
+let mapTransform = { x: 0, y: 0, scale: 0.85 };
+let mapIsDragging = false;
+let mapDragStart = { x: 0, y: 0 };
+let mapHasDragged = false;
+let mapCanvas = null;
+let mapCtx = null;
+
+const MAP_ROADS = [
+  ['MapRegionApproach', 'MapRegionPastures'],
+  ['MapRegionPastures', 'MapRegionCourtyard'],
+  ['MapRegionCourtyard', 'MapRegionGrandHall'],
+  ['MapRegionCourtyard', 'MapRegionCathedral'],
+  ['MapRegionCathedral', 'MapRegionLibrary'],
+  ['MapRegionCourtyard', 'MapRegionGarrison'],
+  ['MapRegionGarrison', 'MapRegionHighlands'],
+  ['MapRegionHighlands', 'MapRegionHopesFall'],
+  ['MapRegionHighlands', 'MapRegionCoalridge'],
+  ['MapRegionGarrison', 'MapRegionBastion'],
+  ['MapRegionBastion', 'MapRegionDragonsRun'],
+  ['MapRegionDragonsRun', 'MapRegionTheBurningSpire'],
+  ['MapRegionTheBurningSpire', 'MapRegionDemonGate'],
+  ['MapRegionPastures', 'MapRegionBramblemead'],
+  ['MapRegionBramblemead', 'MapRegionTempleWoods'],
+  ['MapRegionTempleWoods', 'MapRegionSilverthorn'],
+  ['MapRegionSilverthorn', 'MapRegionEmberwood'],
+  ['MapRegionEmberwood', 'MapRegionLake'],
+  ['MapRegionLake', 'MapRegionLakeOfLostSouls'],
+  ['MapRegionLakeOfLostSouls', 'MapRegionBleakfields'],
+  ['MapRegionSilverthorn', 'MapRegionNexus'],
+  ['MapRegionPastures', 'MapRegionFracturedPlains'],
+  ['MapRegionFracturedPlains', 'MapRegionCrypt'],
+  ['MapRegionCrypt', 'MapRegionBloodblight'],
+  ['MapRegionBloodblight', 'MapRegionWhisperingSwamp'],
+  ['MapRegionWhisperingSwamp', 'MapRegionWItchWillow'],
+  ['MapRegionFracturedPlains', 'MapRegionManafemPlains'],
+  ['MapRegionManafemPlains', 'MapRegionAlcarridOasis'],
+  ['MapRegionAlcarridOasis', 'MapRegionDunesOfUzzer']
+];
+
+const BIOME_COLORS = {
+  'Desert': { fill: 'rgba(217, 119, 6, 0.22)', stroke: '#f59e0b', text: '#fbbf24' },
+  'Plains': { fill: 'rgba(16, 185, 129, 0.18)', stroke: '#10b981', text: '#34d399' },
+  'Meadow': { fill: 'rgba(52, 211, 153, 0.18)', stroke: '#34d399', text: '#6ee7b7' },
+  'Forest': { fill: 'rgba(5, 150, 105, 0.22)', stroke: '#10b981', text: '#a7f3d0' },
+  'Highlands': { fill: 'rgba(14, 165, 233, 0.22)', stroke: '#0284c7', text: '#38bdf8' },
+  'Mountains': { fill: 'rgba(125, 211, 252, 0.22)', stroke: '#38bdf8', text: '#bae6fd' },
+  'Wasteland': { fill: 'rgba(100, 116, 139, 0.22)', stroke: '#64748b', text: '#94a3b8' },
+  'Volcanic': { fill: 'rgba(239, 68, 68, 0.22)', stroke: '#ef4444', text: '#fca5a5' },
+  'Fortress': { fill: 'rgba(99, 102, 241, 0.22)', stroke: '#6366f1', text: '#a5b4fc' },
+  'Ruins': { fill: 'rgba(139, 92, 246, 0.22)', stroke: '#8b5cf6', text: '#c4b5fd' },
+  'Sanctuary': { fill: 'rgba(168, 85, 247, 0.22)', stroke: '#a855f7', text: '#d8b4fe' },
+  'Subterranean': { fill: 'rgba(71, 85, 105, 0.30)', stroke: '#64748b', text: '#cbd5e1' },
+  'Swamp': { fill: 'rgba(13, 148, 136, 0.22)', stroke: '#0d9488', text: '#5eead4' },
+  'Lake': { fill: 'rgba(6, 182, 212, 0.22)', stroke: '#06b6d4', text: '#67e8f9' },
+  'Mystic': { fill: 'rgba(192, 132, 252, 0.22)', stroke: '#c084fc', text: '#e9d5ff' },
+  'Arcane': { fill: 'rgba(236, 72, 153, 0.22)', stroke: '#ec4899', text: '#f472b6' }
+};
+
+async function initWorldMap() {
+  mapCanvas = document.getElementById('world-map-canvas');
+  if (!mapCanvas) return;
+  mapCtx = mapCanvas.getContext('2d');
+
+  if (!mapInitialized) {
+    setupMapEventListeners();
+    mapInitialized = true;
+  }
+
+  await refreshMapData();
+  renderWorldMap();
+}
+
+async function refreshMapData() {
+  try {
+    const [resReg, resResp, resBoss, resWeath] = await Promise.all([
+      fetch('/api/world/regions').then(r => r.json()).catch(() => []),
+      fetch('/api/respawns').then(r => r.json()).catch(() => []),
+      fetch('/api/bosses').then(r => r.json()).catch(() => ({ encounters: [] })),
+      fetch('/api/weather').then(r => r.json()).catch(() => [])
+    ]);
+
+    mapRegions = Array.isArray(resReg) ? resReg : [];
+    mapRespawns = Array.isArray(resResp) ? resResp : [];
+    mapBosses = (resBoss && resBoss.encounters) ? resBoss.encounters : [];
+    mapWeather = Array.isArray(resWeath) ? resWeath : [];
+
+    if (!mapSelectedTarget && mapRegions.length > 0) {
+      const central = mapRegions.find(r => r.id === 'MapRegionCourtyard') || mapRegions[0];
+      selectMapMarker({ type: 'region', data: central }, false);
+    }
+  } catch(e) {}
+}
+
+function setupMapEventListeners() {
+  if (!mapCanvas) return;
+
+  mapCanvas.addEventListener('mousedown', (e) => {
+    mapIsDragging = true;
+    mapHasDragged = false;
+    mapDragStart = { x: e.clientX - mapTransform.x, y: e.clientY - mapTransform.y };
+    mapCanvas.style.cursor = 'grabbing';
+  });
+
+  window.addEventListener('mousemove', (e) => {
+    if (!mapIsDragging) return;
+    mapHasDragged = true;
+    mapTransform.x = e.clientX - mapDragStart.x;
+    mapTransform.y = e.clientY - mapDragStart.y;
+    renderWorldMap();
+  });
+
+  window.addEventListener('mouseup', () => {
+    if (mapIsDragging) {
+      mapIsDragging = false;
+      if (mapCanvas) mapCanvas.style.cursor = 'grab';
+    }
+  });
+
+  mapCanvas.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const zoomFactor = e.deltaY < 0 ? 1.15 : 0.87;
+    mapTransform.scale = Math.max(0.35, Math.min(3.5, mapTransform.scale * zoomFactor));
+    renderWorldMap();
+  }, { passive: false });
+
+  mapCanvas.addEventListener('click', (e) => {
+    if (mapHasDragged) return;
+    handleMapClick(e);
+  });
+
+  let lastTouchDist = 0;
+  mapCanvas.addEventListener('touchstart', (e) => {
+    if (e.touches.length === 1) {
+      mapIsDragging = true;
+      mapHasDragged = false;
+      mapDragStart = { x: e.touches[0].clientX - mapTransform.x, y: e.touches[0].clientY - mapTransform.y };
+    } else if (e.touches.length === 2) {
+      lastTouchDist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+    }
+  }, { passive: true });
+
+  mapCanvas.addEventListener('touchmove', (e) => {
+    if (e.touches.length === 1 && mapIsDragging) {
+      mapHasDragged = true;
+      mapTransform.x = e.touches[0].clientX - mapDragStart.x;
+      mapTransform.y = e.touches[0].clientY - mapDragStart.y;
+      renderWorldMap();
+    } else if (e.touches.length === 2) {
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      if (lastTouchDist > 0) {
+        const factor = dist / lastTouchDist;
+        mapTransform.scale = Math.max(0.35, Math.min(3.5, mapTransform.scale * factor));
+        renderWorldMap();
+      }
+      lastTouchDist = dist;
+    }
+  }, { passive: true });
+
+  mapCanvas.addEventListener('touchend', (e) => {
+    if (e.touches.length === 0) {
+      mapIsDragging = false;
+      lastTouchDist = 0;
+    }
+  });
+}
+
+function getChestWorldCoords(chest, index) {
+  const zone = chest.zone || 'Overworld';
+  let base = { x: 480, y: 500 };
+
+  if (zone === 'Brynmoore') base = { x: 540, y: 460 };
+  else if (zone === 'Ghornefell') base = { x: 540, y: 290 };
+  else if (zone === 'Dowdun Reach') base = { x: 510, y: 230 };
+  else if (zone === 'Fellhollow') base = { x: 520, y: 650 };
+  else if (zone === 'Umbral Sands') base = { x: 710, y: 760 };
+
+  const angle = (index * 1.39) % (Math.PI * 2);
+  const dist = 32 + ((index % 5) * 12);
+  return {
+    wx: base.x + Math.cos(angle) * dist,
+    wy: base.y + Math.sin(angle) * dist
+  };
+}
+
+function getBossWorldCoords(boss) {
+  const n = (boss.name || '') + (boss.id || '');
+  if (n.includes('Dragon') || n.includes('Velgar')) return { wx: 750, wy: 330 };
+  if (n.includes('Kalphite')) return { wx: 750, wy: 780 };
+  if (n.includes('Fight Cave') || n.includes('Fuzan') || n.includes('TzTok')) return { wx: 830, wy: 240 };
+  if (n.includes('Nightmare') || n.includes('Demon')) return { wx: 860, wy: 320 };
+  if (n.includes('Titan') || n.includes('Knight')) return { wx: 670, wy: 380 };
+  if (n.includes('Sands')) return { wx: 660, wy: 740 };
+  if (n.includes('Death') || n.includes('Imaru')) return { wx: 520, wy: 650 };
+  return { wx: 500, wy: 500 };
+}
+
+function handleMapClick(e) {
+  if (!mapCanvas) return;
+  const rect = mapCanvas.getBoundingClientRect();
+  const canvasX = (e.clientX - rect.left) * (mapCanvas.width / rect.width);
+  const canvasY = (e.clientY - rect.top) * (mapCanvas.height / rect.height);
+
+  const wx = (canvasX - mapCanvas.width / 2 - mapTransform.x) / mapTransform.scale + 500;
+  const wy = (canvasY - mapCanvas.height / 2 - mapTransform.y) / mapTransform.scale + 500;
+
+  // 1. Check Boss markers
+  if (mapFilterLayer === 'all' || mapFilterLayer === 'bosses') {
+    for (const b of mapBosses) {
+      const bw = getBossWorldCoords(b);
+      const dist = Math.hypot(wx - bw.wx, wy - bw.wy);
+      if (dist <= 18 / mapTransform.scale) {
+        selectMapMarker({ type: 'boss', data: b, wx: bw.wx, wy: bw.wy });
+        return;
+      }
+    }
+  }
+
+  // 2. Check Chest markers
+  if (mapFilterLayer === 'all' || mapFilterLayer === 'chests') {
+    const liveChests = mapRespawns.filter(r => r.source === 'live_log' || r.category === 'Chests & Vaults');
+    for (let i = 0; i < liveChests.length; i++) {
+      const c = liveChests[i];
+      const cw = getChestWorldCoords(c, i);
+      const dist = Math.hypot(wx - cw.wx, wy - cw.wy);
+      if (dist <= 16 / mapTransform.scale) {
+        selectMapMarker({ type: 'chest', data: c, wx: cw.wx, wy: cw.wy });
+        return;
+      }
+    }
+  }
+
+  // 3. Check Canonical Regions
+  for (const r of mapRegions) {
+    const rx = r.x || 500;
+    const ry = r.y || 500;
+    const dist = Math.hypot(wx - rx, wy - ry);
+    if (dist <= 35) {
+      selectMapMarker({ type: 'region', data: r });
+      return;
+    }
+  }
+}
+
+function selectMapMarker(target, doRender = true) {
+  mapSelectedTarget = target;
+  const titleEl = document.getElementById('map-inspector-title');
+  const subEl = document.getElementById('map-inspector-sub');
+  const chestsEl = document.getElementById('map-inspector-chests');
+  const loreEl = document.getElementById('map-inspector-lore');
+
+  if (!titleEl || !subEl || !chestsEl || !loreEl) return;
+
+  if (target.type === 'region') {
+    const r = target.data;
+    titleEl.innerText = r.name;
+    subEl.innerText = `Biome: ${r.biome || 'Plains'} | Sector: [${r.x}, ${r.y}]`;
+    loreEl.innerText = r.lore || 'Canonical world region across the realm of Dragonwilds.';
+
+    // Filter chests in this region
+    const regChests = mapRespawns.filter(c => {
+      const z = (c.zone || '').toLowerCase();
+      const n = (r.name || '').toLowerCase();
+      if (z && n.includes(z)) return true;
+      if (n.includes('courtyard') && z.includes('brynmoore')) return true;
+      if (n.includes('garrison') && z.includes('ghornefell')) return true;
+      if (n.includes('highlands') && z.includes('dowdun')) return true;
+      if (n.includes('crypt') && z.includes('fellhollow')) return true;
+      return false;
+    });
+
+    if (regChests.length === 0) {
+      chestsEl.innerHTML = '<span style="color:#64748b; font-size:12px;">No active dungeon chests currently assigned to this sector.</span>';
+    } else {
+      chestsEl.innerHTML = `
+        <div style="font-size:12px; color:#38bdf8; font-weight:600; margin-bottom:6px;">
+          ${regChests.length} Localized Dungeon Caches & Loot Nodes:
+        </div>
+        <div style="display:flex; flex-direction:column; gap:6px;">
+          ${regChests.map(c => `
+            <div style="background:#131c2e; border:1px solid #1e2c45; padding:6px 10px; border-radius:6px; display:flex; justify-content:space-between; align-items:center;">
+              <div>
+                <div style="font-weight:600; color:#f8fafc; font-size:12px;">${escapeHtml(c.name)}</div>
+                <div style="font-size:10.5px; color:#64748b;">${escapeHtml(c.duration_formatted ? 'Cycle: ' + c.duration_formatted : '')}</div>
+              </div>
+              <div>
+                ${c.is_ready
+                  ? '<span style="background:#064e3b; color:#34d399; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:bold;">🟢 Ready to Loot</span>'
+                  : `<span style="background:#78350f; color:#fde68a; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:bold;">⏳ ${escapeHtml(c.remaining_formatted)}</span>`
+                }
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+  } else if (target.type === 'chest') {
+    const c = target.data;
+    titleEl.innerText = c.name;
+    subEl.innerText = `Loot Cache | Territory: ${c.zone || 'Overworld'} | Category: ${c.category}`;
+    const readyTimeStr = c.respawn_epoch || c.respawn_time ? formatLocalDateTime(c.respawn_epoch || c.respawn_time) : 'Now';
+
+    chestsEl.innerHTML = `
+      <div style="background:#131c2e; border:1px solid #1e2c45; padding:10px; border-radius:8px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <span style="font-size:13px; font-weight:600; color:#f8fafc;">Loot Status</span>
+          ${c.is_ready
+            ? '<span style="background:#064e3b; color:#34d399; padding:3px 8px; border-radius:4px; font-size:11px; font-weight:bold;">🟢 Ready to Loot</span>'
+            : '<span style="background:#78350f; color:#fde68a; padding:3px 8px; border-radius:4px; font-size:11px; font-weight:bold;">⏳ Respawning</span>'
+          }
+        </div>
+        <div style="font-size:12px; color:#94a3b8; line-height:1.6;">
+          <div><strong>Remaining Time:</strong> <span style="color:#f8fafc;">${escapeHtml(c.remaining_formatted)}</span></div>
+          ${!c.is_ready ? `<div><strong>Ready At:</strong> <span style="color:#38bdf8;">${escapeHtml(readyTimeStr)}</span></div>` : ''}
+          <div><strong>Cycle Interval:</strong> <span style="color:#94a3b8;">${escapeHtml(c.duration_formatted || 'Standard')}</span></div>
+          <div><strong>Entity ID:</strong> <span style="font-family:monospace; font-size:11px; color:#64748b;">${escapeHtml(c.id)}</span></div>
+        </div>
+      </div>
+    `;
+    loreEl.innerText = `Objective treasure container tracked live from dedicated server logs. Loot respawn timers operate on continuous server-side ticks.`;
+  } else if (target.type === 'boss') {
+    const b = target.data;
+    titleEl.innerText = b.name;
+    subEl.innerText = `Boss Arena | Lore Region: ${b.lore_region} | Category: ${b.category}`;
+    chestsEl.innerHTML = `
+      <div style="background:#131c2e; border:1px solid #1e2c45; padding:10px; border-radius:8px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <span style="font-size:13px; font-weight:600; color:#f8fafc;">Encounter Gate</span>
+          ${b.unlocked
+            ? '<span style="background:#064e3b; color:#34d399; padding:3px 8px; border-radius:4px; font-size:11px; font-weight:bold;">🟢 Discovered & Active</span>'
+            : '<span style="background:#1e293b; color:#94a3b8; padding:3px 8px; border-radius:4px; font-size:11px; font-weight:bold;">🔒 Undiscovered</span>'
+          }
+        </div>
+        <div style="font-size:12px; color:#cbd5e1; line-height:1.5;">${escapeHtml(b.description || 'Major world encounter.')}</div>
+      </div>
+    `;
+    loreEl.innerText = `Canonical sanctum or portal arena for high-tier combat trials. Verified through in-world teleporter blueprints in active server saves.`;
+  }
+
+  if (doRender) renderWorldMap();
+}
+
+function switchTabToMapMarker(markerId) {
+  setTab('map');
+  const findChest = mapRespawns.find(r => r.id === markerId);
+  if (findChest) {
+    const idx = mapRespawns.indexOf(findChest);
+    const coords = getChestWorldCoords(findChest, idx);
+    mapTransform.x = -(coords.wx - 500) * mapTransform.scale;
+    mapTransform.y = -(coords.wy - 500) * mapTransform.scale;
+    selectMapMarker({ type: 'chest', data: findChest, wx: coords.wx, wy: coords.wy });
+    return;
+  }
+  const findBoss = mapBosses.find(b => b.name === markerId || b.id === markerId);
+  if (findBoss) {
+    const coords = getBossWorldCoords(findBoss);
+    mapTransform.x = -(coords.wx - 500) * mapTransform.scale;
+    mapTransform.y = -(coords.wy - 500) * mapTransform.scale;
+    selectMapMarker({ type: 'boss', data: findBoss, wx: coords.wx, wy: coords.wy });
+  }
+}
+
+function zoomMap(factor) {
+  mapTransform.scale = Math.max(0.35, Math.min(3.5, mapTransform.scale * factor));
+  renderWorldMap();
+}
+
+function resetMap() {
+  mapTransform = { x: 0, y: 0, scale: 0.85 };
+  if (mapRegions.length > 0) {
+    const central = mapRegions.find(r => r.id === 'MapRegionCourtyard') || mapRegions[0];
+    selectMapMarker({ type: 'region', data: central });
+  } else {
+    renderWorldMap();
+  }
+}
+
+function toggleMapLayer(layer, btn) {
+  mapFilterLayer = layer;
+  document.querySelectorAll('#map-layer-pills .pill-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  renderWorldMap();
+}
+
+function filterMapMarkersLive() {
+  const input = document.getElementById('map-search-input');
+  mapSearchQuery = input ? input.value.trim().toLowerCase() : '';
+  renderWorldMap();
+}
+
+function renderWorldMap() {
+  if (!mapCanvas || !mapCtx) return;
+  const ctx = mapCtx;
+  const width = mapCanvas.width;
+  const height = mapCanvas.height;
+
+  // Clear canvas with deep radar slate background
+  ctx.fillStyle = '#070b14';
+  ctx.fillRect(0, 0, width, height);
+
+  ctx.save();
+  ctx.translate(width / 2 + mapTransform.x, height / 2 + mapTransform.y);
+  ctx.scale(mapTransform.scale, mapTransform.scale);
+  ctx.translate(-500, -500);
+
+  // 1. Radar Grid & Concentric Navigation Rings
+  ctx.strokeStyle = 'rgba(56, 189, 248, 0.06)';
+  ctx.lineWidth = 1;
+  for (const r of [160, 320, 480, 640]) {
+    ctx.beginPath();
+    ctx.arc(500, 500, r, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  // Crosshairs
+  ctx.beginPath();
+  ctx.moveTo(500, 40); ctx.lineTo(500, 960);
+  ctx.moveTo(40, 500); ctx.lineTo(960, 500);
+  ctx.stroke();
+
+  // Compass Cardinal Markers
+  ctx.fillStyle = '#334155';
+  ctx.font = 'bold 13px system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('N', 500, 30);
+  ctx.fillText('S', 500, 970);
+  ctx.fillText('W', 30, 500);
+  ctx.fillText('E', 970, 500);
+
+  // 2. Travel Roads / Leyline Pathways
+  const regionMap = {};
+  for (const reg of mapRegions) {
+    regionMap[reg.id] = reg;
+  }
+
+  ctx.strokeStyle = 'rgba(56, 189, 248, 0.16)';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([4, 4]);
+  for (const [r1Id, r2Id] of MAP_ROADS) {
+    const r1 = regionMap[r1Id];
+    const r2 = regionMap[r2Id];
+    if (r1 && r2 && r1.x && r1.y && r2.x && r2.y) {
+      ctx.beginPath();
+      ctx.moveTo(r1.x, r1.y);
+      ctx.lineTo(r2.x, r2.y);
+      ctx.stroke();
+    }
+  }
+  ctx.setLineDash([]);
+
+  // 3. Canonical Regions
+  for (const reg of mapRegions) {
+    const rx = reg.x || 500;
+    const ry = reg.y || 500;
+    const isSelected = mapSelectedTarget && mapSelectedTarget.type === 'region' && mapSelectedTarget.data.id === reg.id;
+    const isMatch = !mapSearchQuery || reg.name.toLowerCase().includes(mapSearchQuery) || (reg.biome || '').toLowerCase().includes(mapSearchQuery);
+
+    const theme = BIOME_COLORS[reg.biome] || BIOME_COLORS['Plains'];
+
+    // Outer halo
+    ctx.beginPath();
+    ctx.arc(rx, ry, isSelected ? 32 : 26, 0, Math.PI * 2);
+    ctx.fillStyle = isMatch ? theme.fill : 'rgba(30, 41, 59, 0.15)';
+    ctx.fill();
+    ctx.strokeStyle = isMatch ? theme.stroke : '#334155';
+    ctx.lineWidth = isSelected ? 3 : 1.5;
+    ctx.stroke();
+
+    // Central hub pip
+    ctx.beginPath();
+    ctx.arc(rx, ry, 4, 0, Math.PI * 2);
+    ctx.fillStyle = isSelected ? '#38bdf8' : (isMatch ? theme.stroke : '#64748b');
+    ctx.fill();
+
+    // Selection Pulsing Ring
+    if (isSelected) {
+      ctx.beginPath();
+      ctx.arc(rx, ry, 42, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.7)';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([3, 3]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // Region Labels
+    ctx.fillStyle = isMatch ? '#f8fafc' : '#64748b';
+    ctx.font = 'bold 11px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillText(reg.name, rx, ry + (isSelected ? 34 : 28));
+
+    ctx.fillStyle = isMatch ? theme.text : '#475569';
+    ctx.font = '9px system-ui, sans-serif';
+    ctx.fillText(reg.biome || 'Territory', rx, ry + (isSelected ? 47 : 41));
+
+    // Weather Badge on region if layer enabled
+    if (mapFilterLayer === 'all' || mapFilterLayer === 'weather') {
+      const matchWeather = mapWeather.find(w => (w.region || '').toLowerCase().includes(reg.name.toLowerCase()));
+      if (matchWeather) {
+        ctx.font = '14px system-ui, sans-serif';
+        ctx.fillText(matchWeather.icon || '☀️', rx, ry - 38);
+      }
+    }
+  }
+
+  // 4. Boss Arenas & Gateways
+  if (mapFilterLayer === 'all' || mapFilterLayer === 'bosses') {
+    for (const b of mapBosses) {
+      const bw = getBossWorldCoords(b);
+      const isSelected = mapSelectedTarget && mapSelectedTarget.type === 'boss' && mapSelectedTarget.data.name === b.name;
+      const isMatch = !mapSearchQuery || b.name.toLowerCase().includes(mapSearchQuery);
+
+      // Diamond marker
+      ctx.save();
+      ctx.translate(bw.wx, bw.wy);
+      ctx.rotate(Math.PI / 4);
+
+      ctx.beginPath();
+      ctx.rect(-9, -9, 18, 18);
+      ctx.fillStyle = isMatch ? 'rgba(239, 68, 68, 0.85)' : 'rgba(71, 85, 105, 0.4)';
+      ctx.fill();
+      ctx.strokeStyle = isSelected ? '#38bdf8' : '#fbbf24';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.restore();
+
+      // Boss Label
+      ctx.fillStyle = isMatch ? '#fca5a5' : '#64748b';
+      ctx.font = 'bold 10.5px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText('⚔️ ' + b.name, bw.wx, bw.wy - 14);
+
+      if (isSelected) {
+        ctx.beginPath();
+        ctx.arc(bw.wx, bw.wy, 24, 0, Math.PI * 2);
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+    }
+  }
+
+  // 5. Live Loot Chests & Dungeon Caches
+  if (mapFilterLayer === 'all' || mapFilterLayer === 'chests') {
+    const liveChests = mapRespawns.filter(r => r.source === 'live_log' || r.category === 'Chests & Vaults');
+    for (let i = 0; i < liveChests.length; i++) {
+      const c = liveChests[i];
+      const cw = getChestWorldCoords(c, i);
+      const isSelected = mapSelectedTarget && mapSelectedTarget.type === 'chest' && mapSelectedTarget.data.id === c.id;
+      const isMatch = !mapSearchQuery || c.name.toLowerCase().includes(mapSearchQuery);
+
+      // Pin Color
+      const pinColor = c.is_ready ? '#10b981' : '#f59e0b';
+
+      // Pin circle
+      ctx.beginPath();
+      ctx.arc(cw.wx, cw.wy, 7, 0, Math.PI * 2);
+      ctx.fillStyle = isMatch ? pinColor : '#475569';
+      ctx.fill();
+      ctx.strokeStyle = '#070b14';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      // Pulsing wave ring for respawning timers
+      if (!c.is_ready && isMatch) {
+        ctx.beginPath();
+        ctx.arc(cw.wx, cw.wy, 13, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(245, 158, 11, 0.5)';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
+
+      // Selection ring
+      if (isSelected) {
+        ctx.beginPath();
+        ctx.arc(cw.wx, cw.wy, 18, 0, Math.PI * 2);
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+
+      // When zoomed in, render badge label
+      if (mapTransform.scale >= 0.75 && isMatch) {
+        ctx.fillStyle = c.is_ready ? '#34d399' : '#fde68a';
+        ctx.font = '9px system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.fillText(c.is_ready ? 'Ready' : c.remaining_formatted, cw.wx, cw.wy + 9);
+      }
+    }
+  }
+
+  ctx.restore();
+}
+
 // ----------------- REFRESH LOOPS -----------------
 async function refreshAll() {
   await loadStatus();
   await loadLeaderboard();
   await loadSaveFiles();
   await loadRespawns();
+  if (currentTab === 'map') await refreshMapData();
   if (currentTab === 'farming') await loadFarming();
   if (currentTab === 'bosses') {
     await loadBosses();
@@ -2374,7 +3180,7 @@ async function refreshAll() {
 
 // Initial hash support
 const hash = (window.location.hash || '').replace('#', '');
-if (['overview', 'respawns', 'farming', 'items', 'bosses', 'players', 'backups', 'leaderboard', 'events', 'logs'].includes(hash)) {
+if (['overview', 'map', 'respawns', 'farming', 'items', 'bosses', 'players', 'backups', 'leaderboard', 'events', 'logs'].includes(hash)) {
   setTab(hash);
 } else {
   setTab('overview');
@@ -2383,6 +3189,9 @@ if (['overview', 'respawns', 'farming', 'items', 'bosses', 'players', 'backups',
 refreshAll();
 setInterval(loadStatus, 1000);
 setInterval(() => {
+  if (currentTab === 'map') {
+    refreshMapData().then(() => renderWorldMap());
+  }
   if (currentTab === 'respawns') {
     loadRespawns();
   }

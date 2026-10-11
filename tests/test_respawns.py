@@ -13,6 +13,8 @@ class TestRespawns(unittest.TestCase):
         # Known chest
         name1 = format_actor_label("BP_Dungeon_Treasure_Chest_BM_Cook_World_Cache_C_UAID_00BE4395530E7E0C02_1510875401")
         self.assertIn("Cook", name1)
+        self.assertIn("Brynmoore", name1)
+        self.assertIn("Dungeon Cache", name1)
         self.assertNotIn("BP_", name1)
 
         # Mining Rock
