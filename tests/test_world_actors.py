@@ -94,14 +94,33 @@ class TestWorldActors(unittest.TestCase):
         self.assertEqual(burrow_info["category"], "shortcuts")
 
     def test_world_to_map_coords(self):
-        coords = world_to_map_coords(6000.0, 187000.0)
+        # 1. Brynmoore Starter Shoreline landmark
+        coords = world_to_map_coords(6000.0, 187000.0, 0.0)
         self.assertAlmostEqual(coords["x"], 210.0, places=1)
         self.assertAlmostEqual(coords["y"], 500.0, places=1)
 
-        # Clamping
-        extreme = world_to_map_coords(-9999999.0, 9999999.0)
-        self.assertGreaterEqual(extreme["x"], 15.0)
-        self.assertLessEqual(extreme["y"], 985.0)
+        # 2. Subterranean Brynmoore Catacombs / Dungeon Chest (Z < -20000)
+        bm_dungeon = world_to_map_coords(-164981.1, 93812.8, -41811.0)
+        self.assertAlmostEqual(bm_dungeon["x"], 287.5, delta=1.0)
+        self.assertAlmostEqual(bm_dungeon["y"], 498.9, delta=1.0)
+        # Ensure not clamped to edge!
+        self.assertGreater(bm_dungeon["x"], 200.0)
+
+        # 3. Subterranean Kalphite Queen Arena (Z < -20000, X < -350000)
+        kq_arena = world_to_map_coords(-456588.1, 194378.3, -36210.0)
+        self.assertAlmostEqual(kq_arena["x"], 647.6, delta=1.0)
+        self.assertAlmostEqual(kq_arena["y"], 627.9, delta=1.0)
+        self.assertGreater(kq_arena["x"], 600.0)
+
+        # 4. Eastern Desert Gravestone / Continental Reach
+        east_point = world_to_map_coords(369817.3, 39546.5, 3104.1)
+        self.assertAlmostEqual(east_point["x"], 755.7, delta=1.0)
+        self.assertAlmostEqual(east_point["y"], 234.6, delta=1.0)
+
+        # 5. Boundary Clamping Safeguard
+        extreme = world_to_map_coords(-9999999.0, 9999999.0, 0.0)
+        self.assertEqual(extreme["x"], 20.0)
+        self.assertEqual(extreme["y"], 980.0)
 
     def test_parse_lvl_actors(self):
         actors = parse_lvl_actors(self.lvl_path)

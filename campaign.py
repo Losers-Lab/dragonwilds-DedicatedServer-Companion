@@ -118,7 +118,30 @@ def get_campaign_status(saves_dir: str = SAVES_DIR) -> dict:
         # 2. Extract In-World Death Gravestones
         graves_raw = re.findall(rb'BP_PlayerGraveyard_8Slots_C_UAID_[A-Za-z0-9_]+', data)
         unique_graves = sorted(set(g.decode('latin1') for g in graves_raw))
+
+        # Look up SpudCache level actors for exact 3D coordinates
+        spud_graves = {}
+        try:
+            from worldactors import get_world_actor_manager
+            act_mgr = get_world_actor_manager()
+            actors_res = act_mgr.get_actors()
+            other_actors = actors_res.get("actors", {}).get("other", [])
+            for a in other_actors:
+                if "PlayerGraveyard" in a.get("class_name", ""):
+                    spud_graves[a["id"]] = a
+        except Exception:
+            pass
+
         death_markers = []
+        zone_bases = {
+            "Brynmoore": {"x": 280.0, "y": 480.0},
+            "Ghornefell": {"x": 560.0, "y": 400.0},
+            "Dowdun Reach": {"x": 420.0, "y": 220.0},
+            "Fellhollow": {"x": 240.0, "y": 660.0},
+            "Umbral Sands": {"x": 680.0, "y": 580.0},
+            "Overworld": {"x": 350.0, "y": 520.0}
+        }
+
         for idx_g, g_id in enumerate(unique_graves, 1):
             short_id = g_id.split('_UAID_')[-1] if '_UAID_' in g_id else g_id
             zone = "Overworld"
@@ -133,25 +156,54 @@ def get_campaign_status(saves_dir: str = SAVES_DIR) -> dict:
             elif "Desert" in g_id or "Sand" in g_id:
                 zone = "Umbral Sands"
 
+            uaid_key = f"UAID_{short_id}"
+            actor_entry = spud_graves.get(uaid_key) or spud_graves.get(g_id)
+            if actor_entry:
+                world_pos = actor_entry["world_pos"]
+                map_coords = actor_entry["map_coords"]
+                cell = actor_entry["cell"]
+                source = "spud_cache_3d"
+            else:
+                world_pos = None
+                cell = "Overworld Save Chunk"
+                source = "save_actor_registry"
+                h = abs(hash(short_id))
+                ox = ((h % 41) - 20) * 1.5
+                oy = (((h // 41) % 41) - 20) * 1.5
+                base = zone_bases.get(zone, {"x": 350.0, "y": 520.0})
+                map_coords = {"x": round(base["x"] + ox, 1), "y": round(base["y"] + oy, 1)}
+
             death_markers.append({
                 "index": idx_g,
                 "id": g_id,
                 "short_id": short_id,
                 "name": f"Player Gravestone #{idx_g}",
                 "zone": zone,
-                "type": "Death Gravestone"
+                "type": "Death Gravestone",
+                "world_pos": world_pos,
+                "map_coords": map_coords,
+                "cell": cell,
+                "source": source
             })
 
         # 3. Extract Claimed Player Bedrolls / Camps
         bedroll_matches = re.findall(rb'BP_BaseBuilding_BedRoll_C', data)
         total_bedrolls = len(bedroll_matches)
         camps = []
+        camp_bases = [
+            {"x": 345.0, "y": 535.0},
+            {"x": 360.0, "y": 550.0},
+            {"x": 330.0, "y": 515.0},
+            {"x": 375.0, "y": 560.0}
+        ]
         for idx_b in range(1, total_bedrolls + 1):
+            coords = camp_bases[(idx_b - 1) % len(camp_bases)]
             camps.append({
                 "index": idx_b,
                 "name": f"Settlement Bedroll #{idx_b}",
                 "zone": "Central Ashenfall (Overworld)",
-                "type": "Player Camp / Claimed Bed"
+                "type": "Player Camp / Claimed Bed",
+                "map_coords": coords
             })
 
         # 4. In-World Quest NPCs

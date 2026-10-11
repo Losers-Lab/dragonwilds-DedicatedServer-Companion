@@ -111,12 +111,55 @@ class RespawnTracker:
         self._cache_ttl = 3.0
         self._lock = Lock()
 
+    def _get_chest_coords(self, chest_id: str, spud_chests: dict):
+        short_id = f"UAID_{chest_id.split('_UAID_')[-1]}" if "_UAID_" in chest_id else chest_id
+        entry = spud_chests.get(short_id) or spud_chests.get(chest_id)
+        if entry:
+            return entry.get("world_pos"), entry.get("map_coords"), entry.get("cell")
+
+        zone = "Overworld"
+        if "BM" in chest_id or "Brynmoor" in chest_id:
+            zone = "Brynmoore"
+        elif "GF" in chest_id or "Ghornefell" in chest_id:
+            zone = "Ghornefell"
+        elif "DR" in chest_id or "Dowdun" in chest_id:
+            zone = "Dowdun Reach"
+        elif "FH" in chest_id or "Fellhollow" in chest_id:
+            zone = "Fellhollow"
+        elif "UmbralSand" in chest_id or "Desert" in chest_id:
+            zone = "Umbral Sands"
+
+        zone_bases = {
+            "Brynmoore": {"x": 280.0, "y": 480.0},
+            "Ghornefell": {"x": 560.0, "y": 400.0},
+            "Dowdun Reach": {"x": 420.0, "y": 220.0},
+            "Fellhollow": {"x": 240.0, "y": 660.0},
+            "Umbral Sands": {"x": 680.0, "y": 580.0},
+            "Overworld": {"x": 350.0, "y": 520.0}
+        }
+        h = abs(hash(short_id))
+        ox = ((h % 41) - 20) * 1.5
+        oy = (((h // 41) % 41) - 20) * 1.5
+        base = zone_bases.get(zone, {"x": 350.0, "y": 520.0})
+        map_coords = {"x": round(base["x"] + ox, 1), "y": round(base["y"] + oy, 1)}
+        return None, map_coords, "Overworld Log Tracker"
+
     def scan_live_logs(self) -> dict:
         """Scans active and recent server logs for live chest respawn timers."""
         active_chests = {}
         log_files = sorted(glob.glob(os.path.join(self.logs_dir, "*.log")), key=os.path.getmtime)
         if not log_files:
             return active_chests
+
+        spud_chests = {}
+        try:
+            from worldactors import get_world_actor_manager
+            act_mgr = get_world_actor_manager()
+            actors_res = act_mgr.get_actors(["chests"])
+            for c in actors_res.get("actors", {}).get("chests", []):
+                spud_chests[c["id"]] = c
+        except Exception:
+            pass
 
         files_to_read = log_files[-2:] if len(log_files) >= 2 else log_files
 
@@ -143,6 +186,7 @@ class RespawnTracker:
                             log_epoch = parse_log_timestamp(ts_str)
                             dur_sec = parse_duration_seconds(dur_str)
                             respawn_epoch = log_epoch + dur_sec
+                            w_pos, m_coords, cell_name = self._get_chest_coords(chest_id, spud_chests)
 
                             active_chests[chest_id] = {
                                 "id": chest_id,
@@ -152,7 +196,10 @@ class RespawnTracker:
                                 "respawn_epoch": respawn_epoch,
                                 "duration_seconds": dur_sec,
                                 "last_event_epoch": log_epoch,
-                                "source": "live_log"
+                                "source": "live_log",
+                                "world_pos": w_pos,
+                                "map_coords": m_coords,
+                                "cell": cell_name
                             }
                             continue
 
@@ -167,6 +214,7 @@ class RespawnTracker:
                                 active_chests[chest_id]["respawn_epoch"] = log_epoch
                                 active_chests[chest_id]["last_event_epoch"] = log_epoch
                             else:
+                                w_pos, m_coords, cell_name = self._get_chest_coords(chest_id, spud_chests)
                                 active_chests[chest_id] = {
                                     "id": chest_id,
                                     "name": format_actor_label(chest_id),
@@ -175,7 +223,10 @@ class RespawnTracker:
                                     "respawn_epoch": 0.0,
                                     "duration_seconds": 0.0,
                                     "last_event_epoch": log_epoch,
-                                    "source": "live_log"
+                                    "source": "live_log",
+                                    "world_pos": w_pos,
+                                    "map_coords": m_coords,
+                                    "cell": cell_name
                                 }
             except Exception:
                 pass

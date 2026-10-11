@@ -29,6 +29,8 @@ CANONICAL_BOSS_ENCOUNTERS = [
         "id": "boss_dragon_arena",
         "name": "The Dragon Arena (Dragon Boss)",
         "lore_region": "Dragonkin Citadel / High Peaks",
+        "region_id": "MapRegionDragonsRun",
+        "map_coords": {"x": 530.0, "y": 350.0},
         "teleporter_token": b"BP_InteractablePlayerTeleporter_IntoDragonArena",
         "category": "World Boss",
         "description": "Arena teleporter leading into the Dragon Boss inner sanctum."
@@ -37,6 +39,8 @@ CANONICAL_BOSS_ENCOUNTERS = [
         "id": "boss_kalphite_queen",
         "name": "Kalphite Queen Arena",
         "lore_region": "Umbral Sands / Kalphite Lair",
+        "region_id": "MapRegionDunesOfUzzer",
+        "map_coords": {"x": 650.0, "y": 620.0},
         "teleporter_token": b"BP_PROTOTYPE_InteractablePlayerTeleporter_KalphiteQueenArena",
         "category": "Lair Boss",
         "description": "Subterranean hive arena harboring the Kalphite Queen."
@@ -45,6 +49,8 @@ CANONICAL_BOSS_ENCOUNTERS = [
         "id": "boss_fight_caves",
         "name": "Fight Caves (TzTok-Jad)",
         "lore_region": "Volcanic Core",
+        "region_id": "MapRegionTheBurningSpire",
+        "map_coords": {"x": 570.0, "y": 400.0},
         "teleporter_token": b"FightCaves_ToBoss",
         "category": "Arena Trial",
         "description": "Multi-wave endurance trial leading directly into the fire titan."
@@ -53,6 +59,8 @@ CANONICAL_BOSS_ENCOUNTERS = [
         "id": "boss_nightmare_crucible",
         "name": "Nightmare Crucible",
         "lore_region": "Shadowed Wilds",
+        "region_id": "MapRegionDemonGate",
+        "map_coords": {"x": 550.0, "y": 450.0},
         "teleporter_token": b"NightmareCrucible",
         "category": "Trial Boss",
         "description": "Crucible encounter locked by ritualistic trial requirements."
@@ -61,6 +69,8 @@ CANONICAL_BOSS_ENCOUNTERS = [
         "id": "boss_titan_door",
         "name": "Titan Door Vault",
         "lore_region": "Ancient Ruins",
+        "region_id": "MapRegionBastion",
+        "map_coords": {"x": 620.0, "y": 380.0},
         "teleporter_token": b"TitanDoor",
         "category": "Vault Guardian",
         "description": "Sealed titan gateway concealing subterranean vault guardians."
@@ -69,6 +79,8 @@ CANONICAL_BOSS_ENCOUNTERS = [
         "id": "boss_umbral_door",
         "name": "Umbral Door Sanctum",
         "lore_region": "Umbral Sands",
+        "region_id": "MapRegionAlcarridOasis",
+        "map_coords": {"x": 670.0, "y": 440.0},
         "teleporter_token": b"UmbralDoor",
         "category": "Desert Sanctum",
         "description": "Sands sanctuary gate requiring ancient key unlocks."
@@ -77,6 +89,8 @@ CANONICAL_BOSS_ENCOUNTERS = [
         "id": "boss_deaths_temple",
         "name": "Death's Temple",
         "lore_region": "Underworld Threshold",
+        "region_id": "MapRegionCrypt",
+        "map_coords": {"x": 340.0, "y": 650.0},
         "teleporter_token": b"DeathsTemple",
         "category": "Ancient Temple",
         "description": "Portal granting entry to the domain of Death."
@@ -112,6 +126,8 @@ def get_boss_encounters(saves_dir: str = SAVES_DIR) -> dict:
             "id": boss["id"],
             "name": boss["name"],
             "lore_region": boss["lore_region"],
+            "region_id": boss.get("region_id"),
+            "map_coords": boss.get("map_coords", {"x": 500.0, "y": 500.0}),
             "category": boss["category"],
             "description": boss["description"],
             "world_discovered": is_instantiated,

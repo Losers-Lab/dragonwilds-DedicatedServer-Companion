@@ -2690,6 +2690,8 @@ function renderLiveWorldEvents() {
 // ----------------- INTERACTIVE WORLD MAP (ASHENFALL) -----------------
 let mapRegions = [];
 let mapRespawns = [];
+let mapChests = [];
+let mapActorsChests = [];
 let mapBosses = [];
 let mapWeather = [];
 let mapGraves = [];
@@ -2793,7 +2795,7 @@ async function refreshMapData() {
       fetch('/api/bosses').then(r => r.json()).catch(() => ({ encounters: [] })),
       fetch('/api/weather').then(r => r.json()).catch(() => []),
       fetch('/api/campaign').then(r => r.json()).catch(() => ({})),
-      fetch('/api/world/actors?category=fishing,npcs,shrines,shortcuts').then(r => r.json()).catch(() => ({}))
+      fetch('/api/world/actors?category=all').then(r => r.json()).catch(() => ({}))
     ]);
 
     mapRegions = Array.isArray(resReg) ? resReg : [];
@@ -2807,6 +2809,51 @@ async function refreshMapData() {
     mapNPCs = actData.npcs || [];
     mapShrines = actData.shrines || [];
     mapShortcuts = actData.shortcuts || [];
+    mapActorsChests = actData.chests || [];
+
+    // Build unified chests catalog: SpudCache 3D chests + live log respawns
+    const liveMap = new Map();
+    for (const r of mapRespawns) {
+      if (r && r.id) {
+        liveMap.set(r.id, r);
+        const short = r.id.includes('_UAID_') ? 'UAID_' + r.id.split('_UAID_')[1] : r.id;
+        liveMap.set(short, r);
+      }
+    }
+
+    const unifiedChests = [];
+    const seenChests = new Set();
+
+    for (const sc of mapActorsChests) {
+      const live = liveMap.get(sc.id);
+      seenChests.add(sc.id);
+      if (sc.full_name) seenChests.add(sc.full_name);
+      unifiedChests.push({
+        ...sc,
+        name: sc.title || sc.name,
+        status: live ? live.status : 'ready',
+        is_ready: live ? live.status === 'ready' : true,
+        remaining_seconds: live ? (live.remaining_seconds || 0) : 0,
+        remaining_formatted: live ? (live.remaining_formatted || 'Ready') : 'Ready',
+        duration_formatted: live ? live.duration_formatted : 'Standard',
+        respawn_epoch: live ? (live.respawn_epoch || 0) : 0,
+        source: live ? 'live_log' : 'spud_cache_3d'
+      });
+    }
+
+    for (const lr of mapRespawns) {
+      const short = (lr.id && lr.id.includes('_UAID_')) ? 'UAID_' + lr.id.split('_UAID_')[1] : lr.id;
+      if (lr.id && !seenChests.has(lr.id) && !seenChests.has(short)) {
+        seenChests.add(lr.id);
+        unifiedChests.push({
+          ...lr,
+          title: lr.name,
+          is_ready: lr.status === 'ready'
+        });
+      }
+    }
+
+    mapChests = unifiedChests;
 
     if (!mapSelectedTarget && mapRegions.length > 0) {
       const central = mapRegions.find(r => r.id === 'MapRegionCourtyard') || mapRegions[0];
@@ -2929,7 +2976,10 @@ function setupMapEventListeners() {
 }
 
 function getGraveWorldCoords(grave, index) {
-  const zone = grave.zone || 'Overworld';
+  if (grave && grave.map_coords && typeof grave.map_coords.x === 'number') {
+    return { wx: grave.map_coords.x, wy: grave.map_coords.y };
+  }
+  const zone = (grave && grave.zone) || 'Overworld';
   let base = { x: 290, y: 520 };
   if (zone === 'Brynmoore') base = { x: 280, y: 480 };
   else if (zone === 'Ghornefell') base = { x: 560, y: 400 };
@@ -2946,13 +2996,19 @@ function getGraveWorldCoords(grave, index) {
 }
 
 function getCampWorldCoords(camp, index) {
-  if (index === 0) return { wx: 340, wy: 520 };
-  if (index === 1) return { wx: 230, wy: 460 };
-  return { wx: 310 + (index * 26), wy: 540 };
+  if (camp && camp.map_coords && typeof camp.map_coords.x === 'number') {
+    return { wx: camp.map_coords.x, wy: camp.map_coords.y };
+  }
+  if (index === 0) return { wx: 345, wy: 535 };
+  if (index === 1) return { wx: 360, wy: 550 };
+  return { wx: 330 + (index * 20), wy: 520 };
 }
 
 function getChestWorldCoords(chest, index) {
-  const zone = chest.zone || 'Overworld';
+  if (chest && chest.map_coords && typeof chest.map_coords.x === 'number') {
+    return { wx: chest.map_coords.x, wy: chest.map_coords.y };
+  }
+  const zone = (chest && chest.zone) || 'Overworld';
   let base = { x: 280, y: 480 };
   if (zone === 'Brynmoore') base = { x: 280, y: 480 };
   else if (zone === 'Ghornefell') base = { x: 560, y: 400 };
@@ -2969,10 +3025,13 @@ function getChestWorldCoords(chest, index) {
 }
 
 function getBossWorldCoords(boss) {
-  const n = ((boss.name || '') + ' ' + (boss.id || '')).toLowerCase();
+  if (boss && boss.map_coords && typeof boss.map_coords.x === 'number') {
+    return { wx: boss.map_coords.x, wy: boss.map_coords.y };
+  }
+  const n = (((boss && boss.name) || '') + ' ' + ((boss && boss.id) || '')).toLowerCase();
   if (n.includes('dragon') || n.includes('velgar')) return { wx: 530, wy: 350 };
-  if (n.includes('kalphite')) return { wx: 720, wy: 720 };
-  if (n.includes('fight cave') || n.includes('fuzan') || n.includes('tztok') || n.includes('fight caves')) return { wx: 690, wy: 230 };
+  if (n.includes('kalphite')) return { wx: 650, wy: 620 };
+  if (n.includes('fight cave') || n.includes('fuzan') || n.includes('tztok') || n.includes('fight caves')) return { wx: 570, wy: 400 };
   if (n.includes('demon') || n.includes('hellfire') || n.includes('gate')) return { wx: 550, wy: 450 };
   if (n.includes('titan') || n.includes('bastion')) return { wx: 620, wy: 380 };
   if (n.includes('burning spire') || n.includes('crucible')) return { wx: 570, wy: 400 };
@@ -3021,12 +3080,10 @@ function findMapMarkerAt(wx, wy) {
     }
   }
 
-
   // 5. Chests
   if (mapFilterLayer === 'all' || mapFilterLayer === 'chests') {
-    const liveChests = mapRespawns.filter(r => r.source === 'live_log' || r.category === 'Chests & Vaults');
-    for (let i = 0; i < liveChests.length; i++) {
-      const c = liveChests[i];
+    for (let i = 0; i < mapChests.length; i++) {
+      const c = mapChests[i];
       const cw = getChestWorldCoords(c, i);
       if (Math.hypot(wx - cw.wx, wy - cw.wy) <= hitTol) {
         return { type: 'chest', data: c, wx: cw.wx, wy: cw.wy };
@@ -3137,8 +3194,11 @@ function selectMapMarker(target, doRender = true) {
     }
   } else if (target.type === 'chest') {
     const c = target.data;
-    titleEl.innerText = c.name;
-    subEl.innerText = `Loot Cache | Territory: ${c.zone || 'Overworld'} | Category: ${c.category}`;
+    const displayName = c.title || c.name || 'Treasure Chest';
+    titleEl.innerText = displayName;
+    const cellInfo = c.cell ? ` • Grid Cell: ${c.cell}` : '';
+    const posInfo = c.world_pos ? ` • Elevation: ${c.world_pos.z} cm` : '';
+    subEl.innerText = `Loot Cache • Territory: ${c.zone || 'Overworld'}${cellInfo}${posInfo}`;
     const readyTimeStr = c.respawn_epoch || c.respawn_time ? formatLocalDateTime(c.respawn_epoch || c.respawn_time) : 'Now';
 
     chestsEl.innerHTML = `
@@ -3151,14 +3211,17 @@ function selectMapMarker(target, doRender = true) {
           }
         </div>
         <div style="font-size:12px; color:#94a3b8; line-height:1.6;">
-          <div><strong>Remaining Time:</strong> <span style="color:#f8fafc;">${escapeHtml(c.remaining_formatted)}</span></div>
-          ${!c.is_ready ? `<div><strong>Ready At:</strong> <span style="color:#38bdf8;">${escapeHtml(readyTimeStr)}</span></div>` : ''}
-          <div><strong>Cycle Interval:</strong> <span style="color:#94a3b8;">${escapeHtml(c.duration_formatted || 'Standard')}</span></div>
-          <div><strong>Entity ID:</strong> <span style="font-family:monospace; font-size:11px; color:#64748b;">${escapeHtml(c.id)}</span></div>
+          ${!c.is_ready ? `<div><strong>Remaining Time:</strong> <span style="color:#f8fafc;">${escapeHtml(c.remaining_formatted || 'In Progress')}</span></div>` : ''}
+          ${!c.is_ready && c.respawn_epoch ? `<div><strong>Ready At:</strong> <span style="color:#38bdf8;">${escapeHtml(readyTimeStr)}</span></div>` : ''}
+          ${c.cell ? `<div><strong>World Grid Cell:</strong> <span style="font-family:monospace; color:#cbd5e1;">${escapeHtml(c.cell)}</span></div>` : ''}
+          ${c.world_pos ? `<div><strong>Exact 3D Coordinates:</strong> <span style="color:#38bdf8;">X=${c.world_pos.x}, Y=${c.world_pos.y}, Z=${c.world_pos.z}</span></div>` : ''}
+          ${c.map_coords ? `<div><strong>Map Canvas Coords:</strong> <span style="color:#cbd5e1;">X=${c.map_coords.x}, Y=${c.map_coords.y}</span></div>` : ''}
+          <div><strong>Persistence ID:</strong> <span style="font-family:monospace; font-size:11px; color:#64748b;">${escapeHtml(c.id)}</span></div>
+          <div><strong>Source Verification:</strong> <span style="color:${c.source === 'live_log' ? '#34d399' : '#38bdf8'}; font-weight:600;">${c.source === 'live_log' ? '⚡ Live Server Log Tick' : '💾 Extracted SpudCache 3D Transform'}</span></div>
         </div>
       </div>
     `;
-    loreEl.innerText = `Objective treasure container tracked live from dedicated server logs. Loot respawn timers operate on continuous server-side ticks.`;
+    loreEl.innerText = c.hint || `Objective treasure container tracked with authentic in-engine coordinates.`;
   } else if (target.type === 'boss') {
     const b = target.data;
     titleEl.innerText = b.name;
@@ -3167,19 +3230,26 @@ function selectMapMarker(target, doRender = true) {
       <div style="background:#131c2e; border:1px solid #1e2c45; padding:10px; border-radius:8px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
           <span style="font-size:13px; font-weight:600; color:#f8fafc;">Encounter Gate</span>
-          ${b.unlocked
+          ${b.world_discovered
             ? '<span style="background:#064e3b; color:#34d399; padding:3px 8px; border-radius:4px; font-size:11px; font-weight:bold;">🟢 Discovered & Active</span>'
             : '<span style="background:#1e293b; color:#94a3b8; padding:3px 8px; border-radius:4px; font-size:11px; font-weight:bold;">🔒 Undiscovered</span>'
           }
         </div>
-        <div style="font-size:12px; color:#cbd5e1; line-height:1.5;">${escapeHtml(b.description || 'Major world encounter.')}</div>
+        <div style="font-size:12px; color:#cbd5e1; line-height:1.5; margin-bottom:8px;">${escapeHtml(b.description || 'Major world encounter.')}</div>
+        <div style="font-size:12px; color:#94a3b8; line-height:1.6;">
+          <div><strong>Encounter Lore Region:</strong> <span style="color:#f8fafc;">${escapeHtml(b.lore_region)}</span></div>
+          ${b.map_coords ? `<div><strong>Canvas Arena Coords:</strong> <span style="color:#38bdf8;">X=${b.map_coords.x}, Y=${b.map_coords.y}</span></div>` : ''}
+          <div><strong>Status:</strong> <span style="color:${b.world_discovered ? '#34d399' : '#94a3b8'};">${escapeHtml(b.status || 'Undiscovered')}</span></div>
+        </div>
       </div>
     `;
     loreEl.innerText = `Canonical sanctum or portal arena for high-tier combat trials. Verified through in-world teleporter blueprints in active server saves.`;
   } else if (target.type === 'grave') {
     const g = target.data;
     titleEl.innerText = g.name || `Player Gravestone #${g.index}`;
-    subEl.innerText = `Death Marker | Sector: ${g.zone || 'Overworld'} | Permanent In-World Grave`;
+    const cellInfo = g.cell ? ` • Grid Cell: ${g.cell}` : '';
+    const posInfo = g.world_pos ? ` • Elevation: ${g.world_pos.z} cm` : '';
+    subEl.innerText = `Death Marker • Sector: ${g.zone || 'Overworld'}${cellInfo}${posInfo}`;
     chestsEl.innerHTML = `
       <div style="background:#131c2e; border:1px solid #1e2c45; padding:10px; border-radius:8px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
@@ -3189,11 +3259,15 @@ function selectMapMarker(target, doRender = true) {
         <div style="font-size:12px; color:#94a3b8; line-height:1.6;">
           <div><strong>Grave Number:</strong> <span style="color:#f8fafc;">#${g.index}</span></div>
           <div><strong>Territory Sector:</strong> <span style="color:#38bdf8;">${escapeHtml(g.zone)}</span></div>
+          ${g.cell ? `<div><strong>World Grid Cell:</strong> <span style="font-family:monospace; color:#cbd5e1;">${escapeHtml(g.cell)}</span></div>` : ''}
+          ${g.world_pos ? `<div><strong>Exact 3D Coordinates:</strong> <span style="color:#38bdf8;">X=${g.world_pos.x}, Y=${g.world_pos.y}, Z=${g.world_pos.z}</span></div>` : ''}
+          ${g.map_coords ? `<div><strong>Map Canvas Coords:</strong> <span style="color:#cbd5e1;">X=${g.map_coords.x}, Y=${g.map_coords.y}</span></div>` : ''}
           <div><strong>Persistence UAID:</strong> <span style="font-family:monospace; font-size:11px; color:#64748b;">${escapeHtml(g.short_id || g.id)}</span></div>
+          <div><strong>Source Verification:</strong> <span style="color:#c084fc; font-weight:600;">${g.source === 'spud_cache_3d' ? '💾 Verified SpudCache 3D Transform' : '📁 Savefile Player Registry'}</span></div>
         </div>
       </div>
     `;
-    loreEl.innerText = `Permanent player death gravestone in Hardcore mode. Holds the fallen adventurer's belongings and inventory.`;
+    loreEl.innerText = `Permanent player death gravestone in Hardcore mode. Holds the fallen adventurer's belongings and inventory at exact coordinates of demise.`;
   } else if (target.type === 'camp') {
     const camp = target.data;
     titleEl.innerText = camp.name || `Settlement Bedroll #${camp.index}`;
@@ -3207,6 +3281,7 @@ function selectMapMarker(target, doRender = true) {
         <div style="font-size:12px; color:#94a3b8; line-height:1.6;">
           <div><strong>Bedroll Index:</strong> <span style="color:#f8fafc;">#${camp.index}</span></div>
           <div><strong>Territory Sector:</strong> <span style="color:#38bdf8;">${escapeHtml(camp.zone)}</span></div>
+          ${camp.map_coords ? `<div><strong>Camp Coordinates:</strong> <span style="color:#67e8f9;">X=${camp.map_coords.x}, Y=${camp.map_coords.y}</span></div>` : ''}
           <div><strong>Spawn Point Type:</strong> <span style="color:#f8fafc;">Territorial Bedroll Camp</span></div>
         </div>
       </div>
@@ -3278,10 +3353,10 @@ function selectMapMarker(target, doRender = true) {
 
 function switchTabToMapMarker(markerId) {
   setTab('map');
-  const findChest = mapRespawns.find(r => r.id === markerId);
+  const findChest = mapChests.find(r => r.id === markerId || r.title === markerId || r.name === markerId) || mapRespawns.find(r => r.id === markerId);
   if (findChest) {
-    const idx = mapRespawns.indexOf(findChest);
-    const coords = getChestWorldCoords(findChest, idx);
+    const idx = mapChests.indexOf(findChest);
+    const coords = getChestWorldCoords(findChest, idx >= 0 ? idx : 0);
     mapTransform.x = -(coords.wx - 500) * mapTransform.scale;
     mapTransform.y = -(coords.wy - 500) * mapTransform.scale;
     selectMapMarker({ type: 'chest', data: findChest, wx: coords.wx, wy: coords.wy });
@@ -3589,13 +3664,12 @@ function renderWorldMap() {
 
   // 5. Live Loot Chests & Dungeon Caches
   if (mapFilterLayer === 'all' || mapFilterLayer === 'chests') {
-    const liveChests = mapRespawns.filter(r => r.source === 'live_log' || r.category === 'Chests & Vaults');
-    for (let i = 0; i < liveChests.length; i++) {
-      const c = liveChests[i];
+    for (let i = 0; i < mapChests.length; i++) {
+      const c = mapChests[i];
       const cw = getChestWorldCoords(c, i);
-      const isSelected = mapSelectedTarget && mapSelectedTarget.type === 'chest' && mapSelectedTarget.data.id === c.id;
-      const isHovered = mapHoveredTarget && mapHoveredTarget.type === 'chest' && mapHoveredTarget.data.id === c.id;
-      const isMatch = !mapSearchQuery || c.name.toLowerCase().includes(mapSearchQuery);
+      const isSelected = mapSelectedTarget && mapSelectedTarget.type === 'chest' && (mapSelectedTarget.data.id === c.id || mapSelectedTarget.data.title === c.title);
+      const isHovered = mapHoveredTarget && mapHoveredTarget.type === 'chest' && (mapHoveredTarget.data.id === c.id || mapHoveredTarget.data.title === c.title);
+      const isMatch = !mapSearchQuery || (c.title || c.name || '').toLowerCase().includes(mapSearchQuery);
 
       const pinColor = c.is_ready ? '#10b981' : '#f59e0b';
 
@@ -3624,7 +3698,8 @@ function renderWorldMap() {
       }
 
       if ((isSelected || isHovered || mapTransform.scale >= 1.35) && isMatch) {
-        const labelText = c.is_ready ? `${c.name} (Ready)` : `${c.name} (${c.remaining_formatted})`;
+        const titleStr = c.title || c.name || 'Chest';
+        const labelText = c.is_ready ? `${titleStr} (Ready)` : `${titleStr} (${c.remaining_formatted})`;
         drawMapLabel(ctx, labelText, cw.wx, cw.wy + 15, c.is_ready ? '#34d399' : '#fde68a');
       }
     }

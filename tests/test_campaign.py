@@ -59,9 +59,16 @@ class TestCampaignMilestones(unittest.TestCase):
         self.assertEqual(len(res["death_markers"]), 2)
         self.assertEqual(res["death_markers"][0]["zone"], "Brynmoore")
         self.assertEqual(res["death_markers"][1]["zone"], "Fellhollow")
+        self.assertIn("map_coords", res["death_markers"][0])
+        self.assertIn("source", res["death_markers"][0])
+        self.assertGreaterEqual(res["death_markers"][0]["map_coords"]["x"], 20.0)
+        self.assertLessEqual(res["death_markers"][0]["map_coords"]["x"], 980.0)
 
         # Camps check
         self.assertEqual(len(res["camps"]), 2)
+        self.assertIn("map_coords", res["camps"][0])
+        self.assertGreaterEqual(res["camps"][0]["map_coords"]["x"], 20.0)
+        self.assertLessEqual(res["camps"][0]["map_coords"]["x"], 980.0)
 
         # Quests check
         self.assertEqual(len(res["quests"]), 2)

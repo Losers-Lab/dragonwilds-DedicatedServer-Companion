@@ -18,6 +18,13 @@ class TestBossesAndWorldEvents(unittest.TestCase):
         self.assertEqual(len(res["encounters"]), len(CANONICAL_BOSS_ENCOUNTERS))
         self.assertEqual(res["summary"]["discovered_arenas"], 0)
         self.assertTrue(all(not b["world_discovered"] for b in res["encounters"]))
+        for b in res["encounters"]:
+            self.assertIn("map_coords", b)
+            self.assertIn("region_id", b)
+            self.assertGreaterEqual(b["map_coords"]["x"], 20.0)
+            self.assertLessEqual(b["map_coords"]["x"], 980.0)
+            self.assertGreaterEqual(b["map_coords"]["y"], 20.0)
+            self.assertLessEqual(b["map_coords"]["y"], 980.0)
 
     def test_boss_encounters_discovery(self):
         save_path = os.path.join(self.temp_dir, "World_Bosses.sav")

@@ -18,22 +18,41 @@ from typing import Dict, List, Optional, Any
 logger = logging.getLogger(__name__)
 
 # Bounding box calibration: Unreal Engine (cm) -> Ashenfall Canvas (1000x1000)
-# Calibrated against canonical Brynmoore landmarks:
-# Starter Shoreline (X=6,133, Y=187,356) -> (210, 500)
-# Village Center (X=48,499, Y=177,605)   -> (274, 483)
-# Castle Stronghold (X=81,070, Y=154,387) -> (323, 441)
+# Calibrated against canonical Brynmoore and Ashenfall continental landmarks:
+# Starter Shoreline (X=6,133, Y=187,356)   -> (210, 500)
+# Village Center (X=48,499, Y=177,605)     -> (274, 483)
+# Castle Stronghold (X=81,070, Y=154,387)  -> (323, 441)
+# Granite Maul Vault (X=131,958, Y=83,849) -> (399, 314)
+# Desert Dunes / Uzer (X=320,000, Y=230,000) -> (681, 577)
 CALIBRATION_BASE_X = 6000.0
 CALIBRATION_BASE_Y = 187000.0
 CALIBRATION_SCALE_X = 0.0015
 CALIBRATION_SCALE_Y = 0.0018
 
 
-def world_to_map_coords(x: float, y: float) -> Dict[str, float]:
-    """Convert Unreal Engine world units (cm) to Ashenfall 1000x1000 map coordinates."""
-    map_x = 210.0 + (x - CALIBRATION_BASE_X) * CALIBRATION_SCALE_X
-    map_y = 500.0 + (y - CALIBRATION_BASE_Y) * CALIBRATION_SCALE_Y
-    map_x = max(15.0, min(985.0, round(map_x, 1)))
-    map_y = max(15.0, min(985.0, round(map_y, 1)))
+def world_to_map_coords(x: float, y: float, z: float = 0.0) -> Dict[str, float]:
+    """
+    Convert Unreal Engine world units (cm) to Ashenfall 1000x1000 map coordinates.
+    Correctly maps global overworld coordinates and resolves subterranean instanced dungeons
+    (Brynmoore Catacombs, Kalphite Queen subterranean hive) back to their canonical surface regions.
+    """
+    # 1. Kalphite Queen Arena / Subterranean Desert Hive (Z < -20000, X < -350000)
+    # Lair is anchored beneath Dunes of Uzer / Umbral Sands (Canvas: 650, 620)
+    if x < -350000.0 and z < -20000.0:
+        map_x = 650.0 + (x - (-455000.0)) * 0.0015
+        map_y = 620.0 + (y - 190000.0) * 0.0018
+    # 2. Brynmoore Subterranean Catacombs & Dungeons (Z < -20000, -250000 <= X <= -100000)
+    # Dungeon is anchored beneath Brynmoore Ancient Courtyard / Crypts (Canvas: 280, 510)
+    elif -250000.0 <= x <= -100000.0 and z < -20000.0:
+        map_x = 280.0 + (x - (-170000.0)) * 0.0015
+        map_y = 510.0 + (y - 100000.0) * 0.0018
+    # 3. Standard Overworld Transformation
+    else:
+        map_x = 210.0 + (x - CALIBRATION_BASE_X) * CALIBRATION_SCALE_X
+        map_y = 500.0 + (y - CALIBRATION_BASE_Y) * CALIBRATION_SCALE_Y
+
+    map_x = max(20.0, min(980.0, round(map_x, 1)))
+    map_y = max(20.0, min(980.0, round(map_y, 1)))
     return {"x": map_x, "y": map_y}
 
 
@@ -298,7 +317,7 @@ def parse_lvl_actors(filepath: str) -> List[Dict[str, Any]]:
                 continue
 
             info = format_actor_label(cls_name)
-            map_pt = world_to_map_coords(x, y)
+            map_pt = world_to_map_coords(x, y, z)
 
             actors.append({
                 "id": actor_id,
@@ -427,6 +446,13 @@ _manager_lock = threading.Lock()
 def get_world_actor_manager(spud_dir: Optional[str] = None) -> WorldActorManager:
     """Retrieve or initialize the global thread-safe WorldActorManager singleton."""
     global _world_actor_manager
+    if not spud_dir:
+        try:
+            import config
+            spud_dir = getattr(config, "SPUD_CACHE_PATH", "")
+        except Exception:
+            spud_dir = ""
+
     with _manager_lock:
         if _world_actor_manager is None:
             _world_actor_manager = WorldActorManager(spud_dir=spud_dir)
