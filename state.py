@@ -1,6 +1,6 @@
 import time
 from threading import Lock
-from datetime import datetime
+from datetime import datetime, timezone
 import config
 
 _lock = Lock()
@@ -32,10 +32,13 @@ def add_event(message, category=None):
         else:
             category = "server"
 
+    now_epoch = time.time()
     with _lock:
         state["events"].insert(0, {
-            "timestamp": datetime.now().strftime("%H:%M:%S"),
-            "full_time": datetime.now().strftime("%m/%d/%Y %I:%M:%S %p"),
+            "epoch": now_epoch,
+            "iso": datetime.fromtimestamp(now_epoch, tz=timezone.utc).isoformat(),
+            "timestamp": datetime.fromtimestamp(now_epoch, tz=timezone.utc).strftime("%H:%M:%S UTC"),
+            "full_time": datetime.fromtimestamp(now_epoch, tz=timezone.utc).strftime("%m/%d/%Y %I:%M:%S %p UTC"),
             "category": category,
             "message": message
         })

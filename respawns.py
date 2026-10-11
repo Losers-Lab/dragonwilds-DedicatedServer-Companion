@@ -15,12 +15,12 @@ import re
 import glob
 import time
 from threading import Lock
-from datetime import datetime
+from datetime import datetime, timezone
 from config import LOGS_DIR, SAVES_DIR
 
 
 def format_actor_label(actor_name: str) -> str:
-    """Converts engine identifier into a clean, human-readable label."""
+    """Converts engine identifier into a clean, human-readable label with zone names."""
     if not actor_name:
         return "Unknown Target"
 
@@ -31,9 +31,24 @@ def format_actor_label(actor_name: str) -> str:
     clean = re.sub(r'_\d+$', '', clean)
     clean = re.sub(r'_C$', '', clean)
 
-    # Insert spaces between camelCase or snake_case words
+    # Insert spaces between camelCase words and replace underscores
     clean = re.sub(r'([a-z])([A-Z])', r'\1 \2', clean)
     clean = clean.replace('_', ' ')
+
+    # Translate known zone abbreviations in chest & dungeon tokens
+    clean = re.sub(r'\bBM\b', 'Brynmoore', clean)
+    clean = re.sub(r'\bGF\b', 'Ghornefell', clean)
+    clean = re.sub(r'\bDR\b', 'Dowdun Reach', clean)
+    clean = re.sub(r'\bFH\b', 'Fellhollow', clean)
+
+    # Clean up chest prefixes and suffixes
+    clean = clean.replace('Dungeon Treasure Chest', 'Dungeon Cache:')
+    clean = clean.replace('Loot Chest Prefab', 'Chest:')
+    clean = clean.replace('Buried Chest', 'Buried Chest:')
+    clean = clean.replace('World Cache', '')
+    clean = clean.replace('Vault Cache', '(Vault)')
+
+    clean = re.sub(r'\s+', ' ', clean)
     return clean.strip() or actor_name
 
 
@@ -75,10 +90,10 @@ def parse_duration_seconds(dur_str: str) -> float:
 
 
 def parse_log_timestamp(ts_str: str) -> float:
-    """Parses [2026.10.10-19.05.28:209] to unix epoch timestamp."""
+    """Parses [2026.10.10-19.05.28:209] (UTC from Unreal Engine) to unix epoch timestamp."""
     try:
         base_str, ms = ts_str.split(':')
-        dt = datetime.strptime(base_str, "%Y.%m.%d-%H.%M.%S")
+        dt = datetime.strptime(base_str, "%Y.%m.%d-%H.%M.%S").replace(tzinfo=timezone.utc)
         return dt.timestamp() + (int(ms) / 1000.0)
     except Exception:
         return 0.0
@@ -259,14 +274,30 @@ class RespawnTracker:
                 remaining = max(0.0, chest["respawn_epoch"] - now) if chest.get("respawn_epoch", 0) > 0 else 0.0
                 is_ready = remaining <= 0.0 or chest.get("status") == "ready"
 
+                zone = "Overworld"
+                cid = chest.get("id", "")
+                if "BM" in cid:
+                    zone = "Brynmoore"
+                elif "GF" in cid:
+                    zone = "Ghornefell"
+                elif "DR" in cid:
+                    zone = "Dowdun Reach"
+                elif "FH" in cid:
+                    zone = "Fellhollow"
+                elif "Desert" in cid or "Sand" in cid:
+                    zone = "Umbral Sands"
+
                 live_items.append({
                     "id": chest["id"],
                     "name": chest["name"],
                     "category": chest["category"],
+                    "zone": zone,
                     "instance_count": 1,
                     "status": "ready" if is_ready else "respawning",
                     "remaining_seconds": round(remaining, 1) if not is_ready else 0.0,
-                    "respawn_time": datetime.fromtimestamp(chest["respawn_epoch"]).strftime("%Y-%m-%d %H:%M:%S") if chest["respawn_epoch"] > 0 else "Ready",
+                    "respawn_epoch": chest.get("respawn_epoch", 0.0),
+                    "respawn_iso": datetime.fromtimestamp(chest["respawn_epoch"], tz=timezone.utc).isoformat() if chest.get("respawn_epoch", 0) > 0 else None,
+                    "respawn_time": datetime.fromtimestamp(chest["respawn_epoch"], tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC") if chest.get("respawn_epoch", 0) > 0 else "Ready",
                     "duration_formatted": self.format_time_remaining(chest.get("duration_seconds", 0)),
                     "remaining_formatted": "Ready to Loot" if is_ready else self.format_time_remaining(remaining),
                     "source": "live_log",

@@ -62,6 +62,13 @@ class TestBossesAndWorldEvents(unittest.TestCase):
         self.assertEqual(events[3]["type"], "World Raid")
         self.assertEqual(events[4]["type"], "World Raid")
 
+        # Timestamp epoch and ISO verification
+        for ev in events:
+            self.assertIn("epoch", ev)
+            self.assertIn("iso", ev)
+            self.assertGreater(ev["epoch"], 0.0)
+            self.assertTrue(ev["iso"].startswith("2026-10-10"))
+
 
 if __name__ == "__main__":
     unittest.main()

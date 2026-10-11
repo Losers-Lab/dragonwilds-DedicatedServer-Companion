@@ -106,13 +106,46 @@ def get_farming_status(saves_dir: str = SAVES_DIR) -> dict:
         crops = []
         total_crops = 0
         for name, category, pattern, status in crop_catalog:
-            count = len(re.findall(pattern, data))
+            matches = re.findall(pattern, data)
+            count = len(matches)
             if count > 0:
+                # Find all unique UAID instances for this crop to populate individual plot breakdowns
+                uaid_pattern = pattern.split(b'|')[0]
+                if b'_UAID_' in uaid_pattern:
+                    base_prefix = uaid_pattern.split(b'_UAID_')[0]
+                    inst_matches = re.findall(base_prefix + rb'[A-Za-z0-9_]*_UAID_[A-Za-z0-9_]+', data)
+                    unique_plots = sorted(set(m.decode('latin1') for m in inst_matches))
+                else:
+                    unique_plots = []
+
+                plot_details = []
+                for idx, plot_id in enumerate(unique_plots, 1):
+                    # Guess region or zone from UAID prefix if known
+                    zone = "World Spawner"
+                    if "BM" in plot_id:
+                        zone = "Brynmoore"
+                    elif "FH" in plot_id:
+                        zone = "Fellhollow"
+                    elif "DR" in plot_id:
+                        zone = "Dowdun Reach"
+                    elif "Desert" in plot_id or "Sand" in plot_id:
+                        zone = "Umbral Sands"
+                    
+                    clean_id = plot_id.split('_UAID_')[-1] if '_UAID_' in plot_id else plot_id
+                    plot_details.append({
+                        "plot_number": idx,
+                        "instance_id": plot_id,
+                        "short_id": clean_id,
+                        "zone": zone,
+                        "status": status
+                    })
+
                 crops.append({
                     "name": name,
                     "category": category,
                     "count": count,
-                    "status": status
+                    "status": status,
+                    "plots": plot_details
                 })
                 total_crops += count
 
