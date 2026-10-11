@@ -82,6 +82,42 @@ def api_items():
     return jsonify(get_master_items(category=category, search_query=search))
 
 
+@app.route("/api/storage/units")
+def api_storage_units():
+    from storage import get_storage_units
+    save_file = request.args.get("save")
+    return jsonify(get_storage_units(save_filename=save_file))
+
+
+@app.route("/api/storage/items")
+def api_storage_items():
+    from storage import search_stored_items, parse_storage_data
+    query = request.args.get("search", "").strip()
+    save_file = request.args.get("save")
+    if not query:
+        data = parse_storage_data(save_filename=save_file)
+        return jsonify({
+            "summary": {
+                "total_containers": data.get("total_containers", 0),
+                "total_stored_items": data.get("total_stored_items", 0),
+                "unique_items_count": data.get("unique_items_count", 0),
+                "save_file": data.get("save_file"),
+            },
+            "items": data.get("items", []),
+        })
+    results = search_stored_items(query=query, save_filename=save_file)
+    data = parse_storage_data(save_filename=save_file)
+    return jsonify({
+        "summary": {
+            "total_containers": data.get("total_containers", 0),
+            "total_stored_items": data.get("total_stored_items", 0),
+            "unique_items_count": data.get("unique_items_count", 0),
+            "save_file": data.get("save_file"),
+        },
+        "items": results,
+    })
+
+
 @app.route("/api/bosses")
 def api_bosses():
     from bosses import get_boss_encounters
@@ -394,8 +430,8 @@ def index():
         <span>Agriculture</span>
       </a>
       <a class="nav-link" data-tab="items" onclick="setTab('items')">
-        <span>Items</span>
-        <span class="badge" id="nav-items-count">1.7k</span>
+        <span>Storage & Items</span>
+        <span class="badge" id="nav-items-count">0</span>
       </a>
       <a class="nav-link" data-tab="bosses" onclick="setTab('bosses')">
         <span>Boss Arenas</span>
@@ -426,7 +462,15 @@ def index():
         <span style="font-size:11px;">↗</span>
       </a>
       <a href="/api/items" target="_blank">
-        <span>API Items</span>
+        <span>API Master Items</span>
+        <span style="font-size:11px;">↗</span>
+      </a>
+      <a href="/api/storage/items" target="_blank">
+        <span>API Stored Items</span>
+        <span style="font-size:11px;">↗</span>
+      </a>
+      <a href="/api/storage/units" target="_blank">
+        <span>API Storage Units</span>
         <span style="font-size:11px;">↗</span>
       </a>
       <a href="/api/bosses" target="_blank">
@@ -478,7 +522,7 @@ def index():
       <a class="mobile-link active" data-tab="overview" onclick="setTab('overview')">Overview</a>
       <a class="mobile-link" data-tab="respawns" onclick="setTab('respawns')">Respawns</a>
       <a class="mobile-link" data-tab="farming" onclick="setTab('farming')">Agriculture</a>
-      <a class="mobile-link" data-tab="items" onclick="setTab('items')">Items</a>
+      <a class="mobile-link" data-tab="items" onclick="setTab('items')">Storage</a>
       <a class="mobile-link" data-tab="bosses" onclick="setTab('bosses')">Bosses</a>
       <a class="mobile-link" data-tab="players" onclick="setTab('players')">Players</a>
       <a class="mobile-link" data-tab="backups" onclick="setTab('backups')">Backups</a>
@@ -1021,50 +1065,87 @@ def index():
       </div>
     </div>
 
-    <!-- VIEW 8: MASTER ITEM CATALOG -->
+    <!-- VIEW 8: STORAGE & ITEM INVENTORY TRACKER -->
     <div id="view-items" style="display:none;">
       <div class="card" style="margin-bottom:20px;">
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:14px;">
           <div>
             <h2 style="margin:0; font-size:20px; font-weight:bold; color:#f8fafc; display:flex; align-items:center; gap:8px;">
-              <span>📦</span> Master Item Catalog
+              <span>📦</span> Storage & Stored Item Tracker
             </h2>
             <div style="font-size:13px; color:#94a3b8; margin-top:2px;">
-              Exhaustive official catalog of 1,704 items extracted directly from server game packages.
+              Search items across storage containers, inspect server totals, and identify exact container locations and owners.
             </div>
           </div>
-          <div>
-            <span class="data-source-badge live" title="Direct index from game packages">⚡ Official Game Assets</span>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <select id="storage-save-select" onchange="loadStorageTracker()"
+                    style="background:#131c2e; border:1px solid #1e2c45; color:#cbd5e1; padding:6px 12px; border-radius:6px; font-size:12px; outline:none;">
+              <option value="">Latest World Save</option>
+              <option value="The Losers.sav">The Losers.sav</option>
+              <option value="Hardcore Losers.sav">Hardcore Losers.sav</option>
+            </select>
+            <span class="data-source-badge saved" title="Directly parsed from container inventories in active save snapshot">💾 Save File</span>
+          </div>
+        </div>
+
+        <!-- Metric summary pills -->
+        <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:12px; margin-bottom:16px;">
+          <div class="card" style="padding:14px; background:#111b2b; border:1px solid #1c283f;">
+            <div style="font-size:12px; color:#94a3b8; text-transform:uppercase; letter-spacing:0.5px;">Active Storage Units</div>
+            <div style="font-size:22px; font-weight:bold; color:#38bdf8; margin-top:4px;" id="storage-stat-units">0</div>
+          </div>
+          <div class="card" style="padding:14px; background:#111b2b; border:1px solid #1c283f;">
+            <div style="font-size:12px; color:#94a3b8; text-transform:uppercase; letter-spacing:0.5px;">Server Stored Items</div>
+            <div style="font-size:22px; font-weight:bold; color:#10b981; margin-top:4px;" id="storage-stat-items">0</div>
+          </div>
+          <div class="card" style="padding:14px; background:#111b2b; border:1px solid #1c283f;">
+            <div style="font-size:12px; color:#94a3b8; text-transform:uppercase; letter-spacing:0.5px;">Unique Item Types</div>
+            <div style="font-size:22px; font-weight:bold; color:#f59e0b; margin-top:4px;" id="storage-stat-types">0</div>
           </div>
         </div>
 
         <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-          <input type="text" id="items-search-input" placeholder="Search 1,700+ weapons, armor, potions, tools, resources..." oninput="searchItemsLive()"
+          <input type="text" id="items-search-input" placeholder="Search stored items by ID, container name, or owner (e.g. Arham, Mango, Chest)..." oninput="searchStorageLive()"
                  style="flex:1; min-width:280px; background:#131c2e; border:1px solid #1e2c45; color:#f8fafc; padding:10px 14px; border-radius:8px; font-size:13.5px; outline:none;">
-          <select id="items-cat-select" onchange="searchItemsLive()"
-                  style="background:#131c2e; border:1px solid #1e2c45; color:#f8fafc; padding:10px 14px; border-radius:8px; font-size:13px; outline:none;">
-            <option value="all">All Item Categories</option>
-            <option value="Ammo">Ammunition & Arrows</option>
-            <option value="Armor">Armor & Equipment</option>
-            <option value="Weapons">Weapons</option>
-            <option value="Resources">Resources & Materials</option>
-            <option value="Consumables">Consumables & Food</option>
-            <option value="Tools">Tools</option>
-          </select>
+          <div class="pill-group">
+            <button class="pill-btn active" id="btn-tab-stored-items" onclick="switchStorageTab('items')">Stored Items</button>
+            <button class="pill-btn" id="btn-tab-containers" onclick="switchStorageTab('containers')">Storage Units</button>
+          </div>
         </div>
       </div>
 
-      <div class="card">
+      <!-- Panel 1: Stored Items Across All Containers -->
+      <div id="storage-panel-items" class="card">
         <table class="table" style="width:100%; text-align:left; border-collapse:collapse;">
           <thead>
             <tr style="border-bottom:1px solid #1c283f; color:#94a3b8; font-size:12px; text-transform:uppercase;">
-              <th>Item Name</th>
-              <th>Engine Identifier</th>
-              <th>Category</th>
+              <th>Item ID / Name</th>
+              <th>Total Stored Count</th>
+              <th>Containers Present In</th>
+              <th>Locations & Quantities</th>
             </tr>
           </thead>
           <tbody id="items-table-body">
-            <tr><td colspan="3" style="color:#94a3b8; text-align:center; padding:24px;">Loading master item catalog...</td></tr>
+            <tr><td colspan="4" style="color:#94a3b8; text-align:center; padding:24px;">Loading stored items from save...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Panel 2: Storage Units Browser -->
+      <div id="storage-panel-containers" class="card" style="display:none;">
+        <table class="table" style="width:100%; text-align:left; border-collapse:collapse;">
+          <thead>
+            <tr style="border-bottom:1px solid #1c283f; color:#94a3b8; font-size:12px; text-transform:uppercase;">
+              <th>Storage Unit / Chest</th>
+              <th>Owner</th>
+              <th>Capacity</th>
+              <th>Occupied Slots</th>
+              <th>Total Items</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="containers-table-body">
+            <tr><td colspan="6" style="color:#94a3b8; text-align:center; padding:24px;">Loading storage units...</td></tr>
           </tbody>
         </table>
       </div>
@@ -1228,10 +1309,10 @@ function setTab(tab) {
     if (vFarming) vFarming.style.display = 'block';
     loadFarming();
   } else if (tab === 'items') {
-    title.innerText = 'Master Item Catalog';
-    subtitle.innerText = 'Explore and search 1,704 official in-game items, weapons, and resources';
+    title.innerText = 'Storage & Item Tracker';
+    subtitle.innerText = 'Search items across storage containers, inspect server totals & track unit locations';
     if (vItems) vItems.style.display = 'block';
-    loadMasterItems();
+    loadStorageTracker();
   } else if (tab === 'bosses') {
     title.innerText = 'Boss Arenas & Events';
     subtitle.innerText = 'Objective encounter gates, boss arenas & live world raid telemetry';
@@ -1965,57 +2046,215 @@ function renderFarming() {
   `).join('');
 }
 
-// ----------------- MASTER ITEMS CATALOG -----------------
-let masterItemsList = [];
-let itemsSearchTimeout = null;
+// ----------------- STORAGE & STORED ITEM TRACKER -----------------
+let storageData = null;
+let storageUnitsData = [];
+let storageSearchTimeout = null;
+let currentStorageTab = 'items';
 
-async function loadMasterItems() {
-  await searchItemsLive();
+function switchStorageTab(tab) {
+  currentStorageTab = tab;
+  const btnItems = document.getElementById('btn-tab-stored-items');
+  const btnConts = document.getElementById('btn-tab-containers');
+  const panelItems = document.getElementById('storage-panel-items');
+  const panelConts = document.getElementById('storage-panel-containers');
+
+  if (tab === 'items') {
+    if (btnItems) btnItems.classList.add('active');
+    if (btnConts) btnConts.classList.remove('active');
+    if (panelItems) panelItems.style.display = 'block';
+    if (panelConts) panelConts.style.display = 'none';
+  } else {
+    if (btnConts) btnConts.classList.add('active');
+    if (btnItems) btnItems.classList.remove('active');
+    if (panelConts) panelConts.style.display = 'block';
+    if (panelItems) panelItems.style.display = 'none';
+  }
 }
 
-function searchItemsLive() {
-  clearTimeout(itemsSearchTimeout);
-  itemsSearchTimeout = setTimeout(async () => {
+async function loadStorageTracker() {
+  await searchStorageLive();
+  await loadStorageUnits();
+}
+
+function searchStorageLive() {
+  clearTimeout(storageSearchTimeout);
+  storageSearchTimeout = setTimeout(async () => {
     try {
       const q = (document.getElementById('items-search-input')?.value || '').trim();
-      const cat = (document.getElementById('items-cat-select')?.value || 'all');
-      const res = await fetch(`/api/items?category=${encodeURIComponent(cat)}&search=${encodeURIComponent(q)}`);
-      masterItemsList = await res.json();
-      renderMasterItems();
+      const saveFile = document.getElementById('storage-save-select')?.value || '';
+      const params = new URLSearchParams();
+      if (q) params.set('search', q);
+      if (saveFile) params.set('save', saveFile);
 
+      const res = await fetch(`/api/storage/items?${params.toString()}`);
+      storageData = await res.json();
+      renderStoredItems();
+
+      // Update badge counts
       const badge = document.getElementById('nav-items-count');
-      if (badge && !q && cat === 'all') {
-        badge.innerText = masterItemsList.length > 1000 ? `${(masterItemsList.length/1000).toFixed(1)}k` : masterItemsList.length;
+      if (badge && storageData.summary) {
+        const total = storageData.summary.total_stored_items || 0;
+        badge.innerText = total > 1000 ? `${(total/1000).toFixed(1)}k` : total;
       }
     } catch(e) {}
   }, 200);
 }
 
-function renderMasterItems() {
-  const tbody = document.getElementById('items-table-body');
-  if (!tbody) return;
+async function loadStorageUnits() {
+  try {
+    const saveFile = document.getElementById('storage-save-select')?.value || '';
+    const url = saveFile ? `/api/storage/units?save=${encodeURIComponent(saveFile)}` : '/api/storage/units';
+    const res = await fetch(url);
+    storageUnitsData = await res.json();
+    renderStorageUnits();
+  } catch(e) {}
+}
 
-  if (!masterItemsList || masterItemsList.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="3" style="color:#94a3b8; text-align:center; padding:24px;">No items match your search.</td></tr>';
+function renderStoredItems() {
+  const tbody = document.getElementById('items-table-body');
+  if (!tbody || !storageData) return;
+
+  const summary = storageData.summary || {};
+  const unitsEl = document.getElementById('storage-stat-units');
+  const itemsEl = document.getElementById('storage-stat-items');
+  const typesEl = document.getElementById('storage-stat-types');
+  if (unitsEl) unitsEl.innerText = summary.total_containers?.toLocaleString() || '0';
+  if (itemsEl) itemsEl.innerText = summary.total_stored_items?.toLocaleString() || '0';
+  if (typesEl) typesEl.innerText = summary.unique_items_count?.toLocaleString() || '0';
+
+  const items = storageData.items || [];
+  if (items.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="4" style="color:#94a3b8; text-align:center; padding:24px;">No stored items match your query.</td></tr>';
     return;
   }
 
-  const itemsToShow = masterItemsList.slice(0, 150);
-  tbody.innerHTML = itemsToShow.map(it => `
-    <tr style="border-bottom:1px solid #141f33;">
-      <td style="padding:10px 14px; font-weight:600; color:#f8fafc;">${escapeHtml(it.name || it.id)}</td>
-      <td style="padding:10px 14px; font-family:monospace; color:#38bdf8; font-size:12px;">${escapeHtml(it.id)}</td>
-      <td style="padding:10px 14px;">
-        <span style="background:#1e293b; color:#cbd5e1; padding:2px 8px; border-radius:6px; font-size:11.5px; font-weight:500;">
-          ${escapeHtml(it.category || 'General')}
-        </span>
-      </td>
-    </tr>
-  `).join('');
+  const itemsToShow = items.slice(0, 150);
+  tbody.innerHTML = itemsToShow.map(it => {
+    // Generate location badges (up to 4, plus "+X more" if exceeded)
+    const conts = it.containers || [];
+    const shownConts = conts.slice(0, 4);
+    const badgesHtml = shownConts.map(c => {
+      const ownerPrefix = c.owner && c.owner !== 'World / Unowned' ? `<strong>${escapeHtml(c.owner)}:</strong> ` : '';
+      return `<span style="display:inline-block; margin:2px 4px 2px 0; background:#1e293b; border:1px solid #334155; color:#cbd5e1; padding:3px 8px; border-radius:6px; font-size:11.5px;">
+        ${ownerPrefix}${escapeHtml(c.container_name)} <span style="color:#38bdf8; font-weight:bold;">(x${c.count})</span>
+      </span>`;
+    }).join('');
 
-  if (masterItemsList.length > 150) {
-    tbody.innerHTML += `<tr><td colspan="3" style="color:#64748b; text-align:center; padding:12px; font-size:12px;">Showing first 150 of ${masterItemsList.length} items. Refine search query to filter further.</td></tr>`;
+    const moreHtml = conts.length > 4 
+      ? `<span style="font-size:11px; color:#94a3b8; margin-left:4px;">+${conts.length - 4} more units</span>` 
+      : '';
+
+    return `
+      <tr style="border-bottom:1px solid #141f33;">
+        <td style="padding:10px 14px; font-family:monospace; color:#f8fafc; font-size:12.5px;">
+          <strong style="color:#38bdf8;">${escapeHtml(it.item_id)}</strong>
+        </td>
+        <td style="padding:10px 14px; font-weight:bold; color:#10b981; font-size:14px;">
+          ${(it.total_count || 0).toLocaleString()}
+        </td>
+        <td style="padding:10px 14px;">
+          <span style="background:#0f172a; color:#94a3b8; border:1px solid #1e293b; padding:2px 8px; border-radius:999px; font-size:11.5px; font-weight:600;">
+            ${(it.container_count || conts.length)} containers
+          </span>
+        </td>
+        <td style="padding:10px 14px;">
+          ${badgesHtml} ${moreHtml}
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  if (items.length > 150) {
+    tbody.innerHTML += `<tr><td colspan="4" style="color:#64748b; text-align:center; padding:12px; font-size:12px;">Showing first 150 of ${items.length} stored item types. Use the search bar above to filter.</td></tr>`;
   }
+}
+
+function renderStorageUnits() {
+  const tbody = document.getElementById('containers-table-body');
+  if (!tbody) return;
+
+  if (!storageUnitsData || storageUnitsData.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" style="color:#94a3b8; text-align:center; padding:24px;">No storage units detected in current save snapshot.</td></tr>';
+    return;
+  }
+
+  const unitsToShow = storageUnitsData.slice(0, 150);
+  tbody.innerHTML = unitsToShow.map(c => {
+    const ownerBadge = c.owner && c.owner !== 'World / Unowned'
+      ? `<span style="background:#064e3b; color:#34d399; padding:2px 8px; border-radius:6px; font-size:11px; font-weight:600;">${escapeHtml(c.owner)}</span>`
+      : `<span style="background:#1e293b; color:#94a3b8; padding:2px 8px; border-radius:6px; font-size:11px;">World / Unowned</span>`;
+
+    return `
+      <tr style="border-bottom:1px solid #141f33;">
+        <td style="padding:10px 14px; font-weight:600; color:#f8fafc;">
+          ${escapeHtml(c.name)}
+        </td>
+        <td style="padding:10px 14px;">
+          ${ownerBadge}
+        </td>
+        <td style="padding:10px 14px; color:#cbd5e1; font-size:13px;">
+          ${c.capacity} slots
+        </td>
+        <td style="padding:10px 14px; font-weight:600; color:#38bdf8; font-size:13px;">
+          ${c.occupied_slots} used
+        </td>
+        <td style="padding:10px 14px; font-weight:bold; color:#10b981; font-size:13px;">
+          ${(c.total_items || 0).toLocaleString()} items
+        </td>
+        <td style="padding:10px 14px;">
+          <button class="pill-btn" style="font-size:11px; padding:3px 8px;" onclick="inspectContainer('${c.id}')">Inspect Slots</button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  if (storageUnitsData.length > 150) {
+    tbody.innerHTML += `<tr><td colspan="6" style="color:#64748b; text-align:center; padding:12px; font-size:12px;">Showing first 150 of ${storageUnitsData.length} storage containers.</td></tr>`;
+  }
+}
+
+function inspectContainer(containerId) {
+  const container = storageUnitsData.find(c => c.id === containerId);
+  if (!container) return;
+
+  const slots = container.slots || [];
+  let modalHtml = `
+    <div id="container-modal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); display:flex; align-items:center; justify-content:center; z-index:9999;">
+      <div style="background:#0f172a; border:1px solid #1e293b; border-radius:12px; max-width:650px; width:90%; max-height:80vh; display:flex; flex-direction:column; padding:20px; box-shadow:0 10px 25px rgba(0,0,0,0.5);">
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #1e2c45; padding-bottom:12px; margin-bottom:14px;">
+          <div>
+            <h3 style="margin:0; color:#f8fafc; font-size:18px;">${escapeHtml(container.name)}</h3>
+            <div style="font-size:12px; color:#94a3b8; margin-top:2px;">Owner: ${escapeHtml(container.owner)} | Capacity: ${container.capacity} slots (${container.occupied_slots} occupied)</div>
+          </div>
+          <button onclick="document.getElementById('container-modal').remove()" style="background:#1e293b; border:none; color:#f8fafc; padding:6px 10px; border-radius:6px; cursor:pointer;">✕</button>
+        </div>
+        <div style="overflow-y:auto; flex:1;">
+          <table style="width:100%; text-align:left; border-collapse:collapse;">
+            <thead>
+              <tr style="border-bottom:1px solid #1e293b; color:#94a3b8; font-size:11px; text-transform:uppercase;">
+                <th style="padding:8px;">Slot</th>
+                <th style="padding:8px;">Item ID</th>
+                <th style="padding:8px;">Count</th>
+                <th style="padding:8px;">Durability</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${slots.length === 0 ? '<tr><td colspan="4" style="text-align:center; padding:18px; color:#64748b;">Container is empty</td></tr>' : slots.map(s => `
+                <tr style="border-bottom:1px solid #141f33;">
+                  <td style="padding:8px; color:#94a3b8; font-family:monospace;">#${s.slot}</td>
+                  <td style="padding:8px; font-family:monospace; color:#38bdf8; font-size:12px;">${escapeHtml(s.item_id)}</td>
+                  <td style="padding:8px; font-weight:bold; color:#10b981;">x${s.count || 1}</td>
+                  <td style="padding:8px; color:#cbd5e1; font-size:12px;">${s.durability !== undefined && s.durability !== null ? s.durability : '—'}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.insertAdjacentHTML('beforeend', modalHtml);
 }
 
 // ----------------- BOSS ENCOUNTERS & ARENAS -----------------
