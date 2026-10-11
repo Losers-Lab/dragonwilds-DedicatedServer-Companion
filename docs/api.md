@@ -154,3 +154,23 @@ Lists all `.sav` and `.sav.backup` files in the save games directory sorted by m
 Downloads the specified save file as an attachment (`Content-Disposition: attachment`).
 - Path traversal is strictly protected.
 - Only `.sav` and `.sav.backup` extensions are accepted.
+
+---
+
+## 5. Campaign, Storage & World State
+
+### `GET /api/campaign`
+Returns overall world campaign milestones, unlock counts, and player world markers (gravestones and claimed bedrolls).
+
+### `GET /api/storage/units`
+Returns active storage units and containers with item counts and locations.
+
+### `GET /api/storage/search?q=<query>`
+Searches storage inventories for specific item names.
+
+### `GET /api/farming`
+Returns active crops and flora growth tracking by species and instance plots.
+
+### `GET /api/bosses`
+Returns canonical boss arenas, encounter statuses, and world event logs.
+

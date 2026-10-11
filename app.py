@@ -130,6 +130,12 @@ def api_world_events():
     return jsonify(get_live_world_events())
 
 
+@app.route("/api/campaign")
+def api_campaign():
+    from campaign import get_campaign_status
+    return jsonify(get_campaign_status())
+
+
 @app.route("/api/roster")
 def api_roster():
     st = get_state()
@@ -478,6 +484,10 @@ def index():
       </a>
       <a href="/api/bosses" target="_blank">
         <span>API Bosses</span>
+        <span style="font-size:11px;">↗</span>
+      </a>
+      <a href="/api/campaign" target="_blank">
+        <span>API Campaign</span>
         <span style="font-size:11px;">↗</span>
       </a>
       <a href="/api/world-events" target="_blank">
@@ -947,10 +957,12 @@ def index():
             <button class="pill-btn active" id="btn-layer-all" onclick="toggleMapLayer('all', this)">All Layers</button>
             <button class="pill-btn" id="btn-layer-chests" onclick="toggleMapLayer('chests', this)">Chests & Caches</button>
             <button class="pill-btn" id="btn-layer-bosses" onclick="toggleMapLayer('bosses', this)">Boss Arenas</button>
+            <button class="pill-btn" id="btn-layer-graves" onclick="toggleMapLayer('graves', this)">🪦 Gravestones</button>
+            <button class="pill-btn" id="btn-layer-camps" onclick="toggleMapLayer('camps', this)">⛺ Player Camps</button>
             <button class="pill-btn" id="btn-layer-weather" onclick="toggleMapLayer('weather', this)">Regional Weather</button>
           </div>
           <div style="display:flex; gap:8px; align-items:center;">
-            <input type="text" id="map-search-input" placeholder="Find region, chest, or arena on map..." oninput="filterMapMarkersLive()"
+            <input type="text" id="map-search-input" placeholder="Find region, chest, grave, or arena..." oninput="filterMapMarkersLive()"
                    style="background:#131c2e; border:1px solid #1e2c45; color:#f8fafc; padding:8px 12px; border-radius:8px; font-size:13px; outline:none; min-width:260px;">
           </div>
         </div>
@@ -984,9 +996,17 @@ def index():
                 <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#f59e0b;"></span>
                 <span style="color:#cbd5e1;">Respawning Timer</span>
               </div>
-              <div style="display:flex; align-items:center; gap:6px;">
+              <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">
                 <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#ef4444;"></span>
                 <span style="color:#cbd5e1;">Boss Arena Gate</span>
+              </div>
+              <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">
+                <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#a855f7;"></span>
+                <span style="color:#cbd5e1;">Player Gravestone</span>
+              </div>
+              <div style="display:flex; align-items:center; gap:6px;">
+                <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#06b6d4;"></span>
+                <span style="color:#cbd5e1;">Claimed Camp / Bed</span>
               </div>
             </div>
           </div>
@@ -1281,6 +1301,53 @@ def index():
           <div class="icon">🗺️</div>
           <div class="label">Active World Save</div>
           <div class="value" id="boss-stat-save" style="font-size:15px; color:#f8fafc; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">--</div>
+        </div>
+      </div>
+
+      <!-- CAMPAIGN MILESTONES & WORLD ACHIEVEMENTS -->
+      <div class="card" style="margin-bottom:20px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <h3 style="margin:0; color:#f8fafc; font-size:16px; display:flex; align-items:center; gap:8px;">
+            <span>🏆</span> Campaign Milestones & World Progress
+          </h3>
+          <span class="data-source-badge saved" title="Extracted from active world save progression JSON">💾 Save File</span>
+        </div>
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:10px;" id="campaign-milestones-grid">
+          <div style="background:#0c1322; border:1px solid #1c283f; padding:12px; border-radius:8px; text-align:center;">
+            <div style="font-size:20px; margin-bottom:4px;">✨</div>
+            <div style="font-size:11px; color:#94a3b8; text-transform:uppercase;">Spells Mastered</div>
+            <div style="font-size:18px; font-weight:bold; color:#38bdf8;" id="camp-stat-spells">0</div>
+          </div>
+          <div style="background:#0c1322; border:1px solid #1c283f; padding:12px; border-radius:8px; text-align:center;">
+            <div style="font-size:20px; margin-bottom:4px;">📐</div>
+            <div style="font-size:11px; color:#94a3b8; text-transform:uppercase;">Blueprints</div>
+            <div style="font-size:18px; font-weight:bold; color:#a78bfa;" id="camp-stat-buildings">0</div>
+          </div>
+          <div style="background:#0c1322; border:1px solid #1c283f; padding:12px; border-radius:8px; text-align:center;">
+            <div style="font-size:20px; margin-bottom:4px;">📜</div>
+            <div style="font-size:11px; color:#94a3b8; text-transform:uppercase;">Recipes</div>
+            <div style="font-size:18px; font-weight:bold; color:#facc15;" id="camp-stat-recipes">0</div>
+          </div>
+          <div style="background:#0c1322; border:1px solid #1c283f; padding:12px; border-radius:8px; text-align:center;">
+            <div style="font-size:20px; margin-bottom:4px;">⛩️</div>
+            <div style="font-size:11px; color:#94a3b8; text-transform:uppercase;">Shrines</div>
+            <div style="font-size:18px; font-weight:bold; color:#34d399;" id="camp-stat-shrines">0</div>
+          </div>
+          <div style="background:#0c1322; border:1px solid #1c283f; padding:12px; border-radius:8px; text-align:center;">
+            <div style="font-size:20px; margin-bottom:4px;">💀</div>
+            <div style="font-size:11px; color:#94a3b8; text-transform:uppercase;">Elites Slain</div>
+            <div style="font-size:18px; font-weight:bold; color:#f87171;" id="camp-stat-elites">0</div>
+          </div>
+          <div style="background:#0c1322; border:1px solid #1c283f; padding:12px; border-radius:8px; text-align:center;">
+            <div style="font-size:20px; margin-bottom:4px;">🪦</div>
+            <div style="font-size:11px; color:#94a3b8; text-transform:uppercase;">Gravestones</div>
+            <div style="font-size:18px; font-weight:bold; color:#c084fc;" id="camp-stat-graves">0</div>
+          </div>
+          <div style="background:#0c1322; border:1px solid #1c283f; padding:12px; border-radius:8px; text-align:center;">
+            <div style="font-size:20px; margin-bottom:4px;">⛺</div>
+            <div style="font-size:11px; color:#94a3b8; text-transform:uppercase;">Camps / Beds</div>
+            <div style="font-size:18px; font-weight:bold; color:#22d3ee;" id="camp-stat-camps">0</div>
+          </div>
         </div>
       </div>
 
@@ -2450,15 +2517,45 @@ function inspectContainer(containerId) {
   document.body.insertAdjacentHTML('beforeend', modalHtml);
 }
 
-// ----------------- BOSS ENCOUNTERS & ARENAS -----------------
+// ----------------- BOSS ENCOUNTERS, CAMPAIGN & ARENAS -----------------
 let bossesData = null;
+let campaignData = null;
 let worldEventsData = [];
+
+async function loadCampaign() {
+  try {
+    const res = await fetch('/api/campaign');
+    campaignData = await res.json();
+    renderCampaign();
+  } catch(e) {}
+}
+
+function renderCampaign() {
+  if (!campaignData) return;
+  const s = campaignData.summary || {};
+  const elSpells = document.getElementById('camp-stat-spells');
+  const elBuild = document.getElementById('camp-stat-buildings');
+  const elRec = document.getElementById('camp-stat-recipes');
+  const elShrine = document.getElementById('camp-stat-shrines');
+  const elElites = document.getElementById('camp-stat-elites');
+  const elGraves = document.getElementById('camp-stat-graves');
+  const elCamps = document.getElementById('camp-stat-camps');
+
+  if (elSpells) elSpells.innerText = s.spells_unlocked || 0;
+  if (elBuild) elBuild.innerText = s.buildings_unlocked || 0;
+  if (elRec) elRec.innerText = s.recipes_unlocked || 0;
+  if (elShrine) elShrine.innerText = s.shrines_unlocked || 0;
+  if (elElites) elElites.innerText = s.bosses_and_elites || 0;
+  if (elGraves) elGraves.innerText = s.player_gravestones || 0;
+  if (elCamps) elCamps.innerText = s.player_bedrolls || 0;
+}
 
 async function loadBosses() {
   try {
     const res = await fetch('/api/bosses');
     bossesData = await res.json();
     renderBosses();
+    await loadCampaign();
   } catch(e) {}
 }
 
@@ -2553,6 +2650,8 @@ let mapRegions = [];
 let mapRespawns = [];
 let mapBosses = [];
 let mapWeather = [];
+let mapGraves = [];
+let mapCamps = [];
 let mapInitialized = false;
 let mapSelectedTarget = null;
 let mapFilterLayer = 'all';
@@ -2631,17 +2730,20 @@ async function initWorldMap() {
 
 async function refreshMapData() {
   try {
-    const [resReg, resResp, resBoss, resWeath] = await Promise.all([
+    const [resReg, resResp, resBoss, resWeath, resCamp] = await Promise.all([
       fetch('/api/world/regions').then(r => r.json()).catch(() => []),
       fetch('/api/respawns').then(r => r.json()).catch(() => []),
       fetch('/api/bosses').then(r => r.json()).catch(() => ({ encounters: [] })),
-      fetch('/api/weather').then(r => r.json()).catch(() => [])
+      fetch('/api/weather').then(r => r.json()).catch(() => []),
+      fetch('/api/campaign').then(r => r.json()).catch(() => ({}))
     ]);
 
     mapRegions = Array.isArray(resReg) ? resReg : [];
     mapRespawns = Array.isArray(resResp) ? resResp : [];
     mapBosses = (resBoss && resBoss.encounters) ? resBoss.encounters : [];
     mapWeather = Array.isArray(resWeath) ? resWeath : [];
+    mapGraves = (resCamp && resCamp.death_markers) ? resCamp.death_markers : [];
+    mapCamps = (resCamp && resCamp.camps) ? resCamp.camps : [];
 
     if (!mapSelectedTarget && mapRegions.length > 0) {
       const central = mapRegions.find(r => r.id === 'MapRegionCourtyard') || mapRegions[0];
@@ -2729,6 +2831,33 @@ function setupMapEventListeners() {
   });
 }
 
+function getGraveWorldCoords(grave, index) {
+  const zone = grave.zone || 'Overworld';
+  let base = { x: 500, y: 520 };
+  if (zone === 'Brynmoore') base = { x: 540, y: 460 };
+  else if (zone === 'Ghornefell') base = { x: 540, y: 290 };
+  else if (zone === 'Dowdun Reach') base = { x: 510, y: 230 };
+  else if (zone === 'Fellhollow') base = { x: 520, y: 650 };
+  else if (zone === 'Umbral Sands') base = { x: 710, y: 760 };
+
+  const angle = (index * 1.85) % (Math.PI * 2);
+  const dist = 36 + ((index % 6) * 14);
+  return {
+    wx: base.x + Math.cos(angle) * dist,
+    wy: base.y + Math.sin(angle) * dist
+  };
+}
+
+function getCampWorldCoords(camp, index) {
+  const base = { x: 520, y: 520 };
+  const angle = (index * 2.1) % (Math.PI * 2);
+  const dist = 28 + (index * 16);
+  return {
+    wx: base.x + Math.cos(angle) * dist,
+    wy: base.y + Math.sin(angle) * dist
+  };
+}
+
 function getChestWorldCoords(chest, index) {
   const zone = chest.zone || 'Overworld';
   let base = { x: 480, y: 500 };
@@ -2794,7 +2923,33 @@ function handleMapClick(e) {
     }
   }
 
-  // 3. Check Canonical Regions
+  // 3. Check Gravestones
+  if (mapFilterLayer === 'all' || mapFilterLayer === 'graves') {
+    for (let i = 0; i < mapGraves.length; i++) {
+      const g = mapGraves[i];
+      const gw = getGraveWorldCoords(g, i);
+      const dist = Math.hypot(wx - gw.wx, wy - gw.wy);
+      if (dist <= 16 / mapTransform.scale) {
+        selectMapMarker({ type: 'grave', data: g, wx: gw.wx, wy: gw.wy });
+        return;
+      }
+    }
+  }
+
+  // 4. Check Player Camps
+  if (mapFilterLayer === 'all' || mapFilterLayer === 'camps') {
+    for (let i = 0; i < mapCamps.length; i++) {
+      const camp = mapCamps[i];
+      const cw = getCampWorldCoords(camp, i);
+      const dist = Math.hypot(wx - cw.wx, wy - cw.wy);
+      if (dist <= 16 / mapTransform.scale) {
+        selectMapMarker({ type: 'camp', data: camp, wx: cw.wx, wy: cw.wy });
+        return;
+      }
+    }
+  }
+
+  // 5. Check Canonical Regions
   for (const r of mapRegions) {
     const rx = r.x || 500;
     const ry = r.y || 500;
@@ -2899,6 +3054,42 @@ function selectMapMarker(target, doRender = true) {
       </div>
     `;
     loreEl.innerText = `Canonical sanctum or portal arena for high-tier combat trials. Verified through in-world teleporter blueprints in active server saves.`;
+  } else if (target.type === 'grave') {
+    const g = target.data;
+    titleEl.innerText = g.name || `Player Gravestone #${g.index}`;
+    subEl.innerText = `Death Marker | Sector: ${g.zone || 'Overworld'} | Permanent In-World Grave`;
+    chestsEl.innerHTML = `
+      <div style="background:#131c2e; border:1px solid #1e2c45; padding:10px; border-radius:8px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <span style="font-size:13px; font-weight:600; color:#f8fafc;">Death Marker Status</span>
+          <span style="background:#581c87; color:#d8b4fe; padding:3px 8px; border-radius:4px; font-size:11px; font-weight:bold;">🪦 Persistent Grave</span>
+        </div>
+        <div style="font-size:12px; color:#94a3b8; line-height:1.6;">
+          <div><strong>Grave Number:</strong> <span style="color:#f8fafc;">#${g.index}</span></div>
+          <div><strong>Territory Sector:</strong> <span style="color:#38bdf8;">${escapeHtml(g.zone)}</span></div>
+          <div><strong>Persistence UAID:</strong> <span style="font-family:monospace; font-size:11px; color:#64748b;">${escapeHtml(g.short_id || g.id)}</span></div>
+        </div>
+      </div>
+    `;
+    loreEl.innerText = `Permanent player death gravestone in Hardcore mode. Holds the fallen adventurer's belongings and inventory.`;
+  } else if (target.type === 'camp') {
+    const camp = target.data;
+    titleEl.innerText = camp.name || `Settlement Bedroll #${camp.index}`;
+    subEl.innerText = `Settlement Landmark | Sector: ${camp.zone} | Type: Claimed Bedroll`;
+    chestsEl.innerHTML = `
+      <div style="background:#131c2e; border:1px solid #1e2c45; padding:10px; border-radius:8px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <span style="font-size:13px; font-weight:600; color:#f8fafc;">Camp Status</span>
+          <span style="background:#083344; color:#67e8f9; padding:3px 8px; border-radius:4px; font-size:11px; font-weight:bold;">⛺ Active Spawn Point</span>
+        </div>
+        <div style="font-size:12px; color:#94a3b8; line-height:1.6;">
+          <div><strong>Bedroll Index:</strong> <span style="color:#f8fafc;">#${camp.index}</span></div>
+          <div><strong>Territory Sector:</strong> <span style="color:#38bdf8;">${escapeHtml(camp.zone)}</span></div>
+          <div><strong>Spawn Point Type:</strong> <span style="color:#f8fafc;">Territorial Bedroll Camp</span></div>
+        </div>
+      </div>
+    `;
+    loreEl.innerText = `Active player bedroll anchor registered in active server save. Functions as territorial respawn point.`;
   }
 
   if (doRender) renderWorldMap();
@@ -3153,6 +3344,74 @@ function renderWorldMap() {
         ctx.textAlign = 'center';
         ctx.textBaseline = 'top';
         ctx.fillText(c.is_ready ? 'Ready' : c.remaining_formatted, cw.wx, cw.wy + 9);
+      }
+    }
+  }
+
+  // 6. Player Death Gravestones
+  if (mapFilterLayer === 'all' || mapFilterLayer === 'graves') {
+    for (let i = 0; i < mapGraves.length; i++) {
+      const g = mapGraves[i];
+      const gw = getGraveWorldCoords(g, i);
+      const isSelected = mapSelectedTarget && mapSelectedTarget.type === 'grave' && mapSelectedTarget.data.id === g.id;
+      const isMatch = !mapSearchQuery || g.name.toLowerCase().includes(mapSearchQuery) || (g.zone || '').toLowerCase().includes(mapSearchQuery);
+
+      ctx.beginPath();
+      ctx.arc(gw.wx, gw.wy, 7, 0, Math.PI * 2);
+      ctx.fillStyle = isMatch ? 'rgba(168, 85, 247, 0.9)' : '#475569';
+      ctx.fill();
+      ctx.strokeStyle = '#070b14';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      if (isSelected) {
+        ctx.beginPath();
+        ctx.arc(gw.wx, gw.wy, 18, 0, Math.PI * 2);
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+
+      if (mapTransform.scale >= 0.75 && isMatch) {
+        ctx.fillStyle = '#e9d5ff';
+        ctx.font = '9px system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.fillText(`🪦 #${g.index}`, gw.wx, gw.wy + 9);
+      }
+    }
+  }
+
+  // 7. Claimed Player Camps / Bedrolls
+  if (mapFilterLayer === 'all' || mapFilterLayer === 'camps') {
+    for (let i = 0; i < mapCamps.length; i++) {
+      const camp = mapCamps[i];
+      const cw = getCampWorldCoords(camp, i);
+      const isSelected = mapSelectedTarget && mapSelectedTarget.type === 'camp' && mapSelectedTarget.data.index === camp.index;
+      const isMatch = !mapSearchQuery || camp.name.toLowerCase().includes(mapSearchQuery);
+
+      ctx.beginPath();
+      ctx.arc(cw.wx, cw.wy, 7, 0, Math.PI * 2);
+      ctx.fillStyle = isMatch ? 'rgba(6, 182, 212, 0.9)' : '#475569';
+      ctx.fill();
+      ctx.strokeStyle = '#070b14';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      if (isSelected) {
+        ctx.beginPath();
+        ctx.arc(cw.wx, cw.wy, 18, 0, Math.PI * 2);
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+
+      if (mapTransform.scale >= 0.75 && isMatch) {
+        ctx.fillStyle = '#67e8f9';
+        ctx.font = '9px system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.fillText(`⛺ #${camp.index}`, cw.wx, cw.wy + 9);
       }
     }
   }
