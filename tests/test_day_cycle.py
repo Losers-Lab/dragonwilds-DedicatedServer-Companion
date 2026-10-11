@@ -39,37 +39,37 @@ class TestDayCycle(unittest.TestCase):
         self.assertEqual(c_str["phase"], "Unknown")
 
     def test_fractional_day_count(self):
-        # 42.0 (start of cycle) -> 210 deg (Dawn)
+        # 42.0 (start of cycle) -> 0.0 deg (Top / Dawn)
         c_dawn = calculate_day_cycle(42.0)
         self.assertEqual(c_dawn["progress_percent"], 0.0)
-        self.assertEqual(c_dawn["needle_angle_deg"], 210.0)
+        self.assertEqual(c_dawn["needle_angle_deg"], 0.0)
         self.assertEqual(c_dawn["phase"], "Dawn / Early Morning")
         self.assertFalse(c_dawn["is_night"])
 
-        # 42.5 (50% through cycle) -> 210 + 180 = 390 % 360 = 30 deg (Afternoon / Sunset)
+        # 42.5 (50% through cycle) -> 180.0 deg (Afternoon / Sunset)
         c_half = calculate_day_cycle(42.5)
         self.assertEqual(c_half["progress_percent"], 50.0)
-        self.assertEqual(c_half["needle_angle_deg"], 30.0)
+        self.assertEqual(c_half["needle_angle_deg"], 180.0)
         self.assertEqual(c_half["phase"], "Afternoon / Sunset")
         self.assertFalse(c_half["is_night"])
 
     def test_day_phases(self):
-        # Progress at 0s (cycle_pos = 0) -> angle 210 -> Dawn
+        # Progress at 0s (cycle_pos = 0) -> angle 0 -> Dawn
         c_dawn = calculate_day_cycle(1, time.time())
         self.assertEqual(c_dawn["phase"], "Dawn / Early Morning")
         self.assertFalse(c_dawn["is_night"])
 
-        # 25% through cycle (210s) -> 210 + 90 = 300 deg -> Midday / Noon
+        # 25% through cycle (210s) -> 90 deg -> Midday / Noon
         c_midday = calculate_day_cycle(1, time.time() - 210.0)
         self.assertEqual(c_midday["phase"], "Midday / Noon")
         self.assertFalse(c_midday["is_night"])
 
-        # 66.7% through cycle (560s) -> 210 + 240 = 450 % 360 = 90 deg -> Dusk / Early Night
+        # 66.7% through cycle (560s) -> 240 deg -> Dusk / Early Night
         c_dusk = calculate_day_cycle(1, time.time() - 560.0)
         self.assertEqual(c_dusk["phase"], "Dusk / Early Night")
         self.assertTrue(c_dusk["is_night"])
 
-        # 85% through cycle (714s) -> 210 + 306 = 516 % 360 = 156 deg -> Midnight
+        # 85% through cycle (714s) -> 306 deg -> Midnight
         c_midnight = calculate_day_cycle(1, time.time() - 714.0)
         self.assertEqual(c_midnight["phase"], "Midnight")
         self.assertTrue(c_midnight["is_night"])
@@ -78,7 +78,7 @@ class TestDayCycle(unittest.TestCase):
         # Multi-cycle elapsed time
         c_wrap = calculate_day_cycle(1, time.time() - (DAY_CYCLE_LENGTH_SECONDS * 3 + 210.0))
         self.assertEqual(c_wrap["phase"], "Midday / Noon")
-        self.assertAlmostEqual(c_wrap["needle_angle_deg"], 300.0, delta=1.5)
+        self.assertAlmostEqual(c_wrap["needle_angle_deg"], 90.0, delta=1.5)
 
 
 if __name__ == "__main__":

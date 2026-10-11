@@ -561,40 +561,42 @@ def index():
               <circle cx="50" cy="50" r="48" fill="#0f172a" stroke="#d4af37" stroke-width="2.2" />
 
               <!-- 1. NIGHT TIME SECTION (Permanent dark periwinkle / slate blue with crescent moon) -->
-              <!-- Sits from 90° (3 o'clock) clockwise to 210° (approx 7 o'clock, 120° night arc) -->
-              <path d="M 50,50 L 96,50 A 46,46 0 0,1 27,89.84 Z" fill="#6488ad" />
-              <!-- Crescent Moon Artwork in Night Sector -->
-              <path d="M 64,68 A 12,12 0 0,0 72,84 A 10,10 0 0,1 64,68 Z" fill="#f1f5f9" opacity="0.9" />
+              <!-- Sits from 240° (approx 8 o'clock) clockwise to 360° / 0° (12 o'clock, 120° night arc) -->
+              <path d="M 50,50 L 10.16,73 A 46,46 0 0,1 50,4 Z" fill="#6488ad" />
+              <!-- Crescent Moon Artwork in Night Sector (top-left quadrant) -->
+              <path d="M 28,34 A 11,11 0 0,0 36,49 A 9,9 0 0,1 28,34 Z" fill="#f1f5f9" opacity="0.9" />
 
-              <!-- 2. DAYTIME REMAINING SECTION (Grayed out / Dim muted background for the 240° day arc) -->
-              <path d="M 50,50 L 27,89.84 A 46,46 0 1,1 96,50 Z" fill="#2d333f" />
+              <!-- 2. DAYTIME REMAINING SECTION (Grayed out / Dim muted background for the 240° day arc: 0° to 240°) -->
+              <path d="M 50,50 L 50,4 A 46,46 0 1,1 10.16,73 Z" fill="#2d333f" />
               <!-- Grayed out sunburst rays (future day) -->
               <g stroke="#64748b" stroke-width="1.6" stroke-linecap="round" opacity="0.4">
-                <line x1="50" y1="50" x2="26" y2="76" />
-                <line x1="50" y1="50" x2="16" y2="60" />
-                <line x1="50" y1="50" x2="14" y2="42" />
-                <line x1="50" y1="50" x2="20" y2="24" />
-                <line x1="50" y1="50" x2="34" y2="12" />
-                <line x1="50" y1="50" x2="50" y2="6" />
                 <line x1="50" y1="50" x2="66" y2="12" />
                 <line x1="50" y1="50" x2="80" y2="24" />
                 <line x1="50" y1="50" x2="88" y2="38" />
+                <line x1="50" y1="50" x2="94" y2="50" />
+                <line x1="50" y1="50" x2="88" y2="66" />
+                <line x1="50" y1="50" x2="80" y2="78" />
+                <line x1="50" y1="50" x2="66" y2="88" />
+                <line x1="50" y1="50" x2="50" y2="94" />
+                <line x1="50" y1="50" x2="34" y2="88" />
+                <line x1="50" y1="50" x2="20" y2="80" />
               </g>
 
               <!-- 3. DAYTIME PASSED SECTION (Vibrant golden illuminated sunburst, revealed dynamically up to needle) -->
               <g id="day-passed-group" clip-path="url(#clip-day-passed)">
-                <path d="M 50,50 L 27,89.84 A 46,46 0 1,1 96,50 Z" fill="#201a09" />
+                <path d="M 50,50 L 50,4 A 46,46 0 1,1 10.16,73 Z" fill="#201a09" />
                 <!-- Vibrant Gold Radiating Sunburst Rays -->
                 <g stroke="#f59e0b" stroke-width="1.8" stroke-linecap="round" opacity="0.95">
-                  <line x1="50" y1="50" x2="26" y2="76" />
-                  <line x1="50" y1="50" x2="16" y2="60" />
-                  <line x1="50" y1="50" x2="14" y2="42" />
-                  <line x1="50" y1="50" x2="20" y2="24" />
-                  <line x1="50" y1="50" x2="34" y2="12" />
-                  <line x1="50" y1="50" x2="50" y2="6" stroke-width="2.2" stroke="#fbbf24" />
                   <line x1="50" y1="50" x2="66" y2="12" />
                   <line x1="50" y1="50" x2="80" y2="24" />
-                  <line x1="50" y1="50" x2="88" y2="38" />
+                  <line x1="50" y1="50" x2="88" y2="38" stroke-width="2.2" stroke="#fbbf24" />
+                  <line x1="50" y1="50" x2="94" y2="50" stroke-width="2.2" stroke="#fbbf24" />
+                  <line x1="50" y1="50" x2="88" y2="66" />
+                  <line x1="50" y1="50" x2="80" y2="78" />
+                  <line x1="50" y1="50" x2="66" y2="88" />
+                  <line x1="50" y1="50" x2="50" y2="94" />
+                  <line x1="50" y1="50" x2="34" y2="88" />
+                  <line x1="50" y1="50" x2="20" y2="80" />
                 </g>
                 <circle cx="50" cy="50" r="14" fill="#f59e0b" />
                 <circle cx="50" cy="50" r="8" fill="#fbbf24" />
@@ -602,11 +604,11 @@ def index():
 
               <!-- Inner border ring & divider spokes -->
               <circle cx="50" cy="50" r="46" fill="none" stroke="#d4af37" stroke-width="0.8" opacity="0.5" />
-              <line x1="50" y1="50" x2="27" y2="89.84" stroke="#d4af37" stroke-width="1.2" opacity="0.7" />
-              <line x1="50" y1="50" x2="96" y2="50" stroke="#d4af37" stroke-width="1.2" opacity="0.7" />
+              <line x1="50" y1="50" x2="50" y2="4" stroke="#d4af37" stroke-width="1.4" opacity="0.8" />
+              <line x1="50" y1="50" x2="10.16" y2="73" stroke="#d4af37" stroke-width="1.2" opacity="0.7" />
 
               <!-- Needle Pointer Hand (authentically anchored at 50,50, pointing up at 12 o'clock / 0°, rotates clockwise) -->
-              <g id="dial-needle-group" style="transform-origin:50px 50px; transform:rotate(210deg); transition:transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);">
+              <g id="dial-needle-group" style="transform-origin:50px 50px; transform:rotate(0deg); transition:transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);">
                 <path d="M 48.2,50 L 49.3,9 L 50,5 L 50.7,9 L 51.8,50 Z" fill="#facc15" stroke="#78350f" stroke-width="0.7" />
                 <circle cx="50" cy="50" r="5" fill="#facc15" stroke="#78350f" stroke-width="1.4" />
                 <circle cx="50" cy="50" r="2" fill="#0f172a" />
@@ -1381,20 +1383,19 @@ function renderDayNightDial(cycle, dayCount, lastSave) {
   }
 
   // Dynamic Day-Passed SVG Clipping Arc
-  // Day starts at 210° (approx 7 o'clock) and sweeps clockwise through 270°, 0°, to 90° (3 o'clock)
+  // Day starts at top (0° / 12 o'clock) and sweeps clockwise through 90° (3 o'clock) to 240° (8 o'clock)
   const clipPathEl = document.getElementById('path-day-passed');
   if (clipPathEl) {
     const cx = 50, cy = 50, r = 46;
-    const startDeg = 210.0;
+    const startDeg = 0.0;
     const startRad = (startDeg - 90) * Math.PI / 180;
     const x0 = cx + r * Math.cos(startRad);
     const y0 = cy + r * Math.sin(startRad);
 
-    // Current needle clamped to day arc
+    // Current needle clamped to day arc (0° to 240°)
     let curDeg = angle;
-    // Calculate angular distance clockwise from 210°
-    let delta = (curDeg - startDeg + 360) % 360;
-    // Day arc length is 240° (from 210° to 90°)
+    let delta = curDeg;
+    // Day arc length is 240°
     if (delta > 240) {
       // It's night time: the entire daytime portion has passed!
       delta = 240;
@@ -2141,7 +2142,7 @@ if (['overview', 'respawns', 'farming', 'items', 'bosses', 'players', 'backups',
 }
 
 refreshAll();
-setInterval(loadStatus, 4000);
+setInterval(loadStatus, 1000);
 setInterval(() => {
   if (currentTab === 'respawns') {
     loadRespawns();
@@ -2156,7 +2157,7 @@ setInterval(() => {
   if (currentTab === 'logs' && isLive) {
     fetchLogs();
   }
-}, 3000);
+}, 2000);
 </script>
 </body>
 </html>
