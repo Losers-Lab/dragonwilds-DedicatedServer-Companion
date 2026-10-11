@@ -174,3 +174,38 @@ Returns active crops and flora growth tracking by species and instance plots.
 ### `GET /api/bosses`
 Returns canonical boss arenas, encounter statuses, and world event logs.
 
+### `GET /api/world/actors`
+Returns world persistent actors extracted directly from Unreal Engine SPUD level cache (`.lvl` files) with sub-centimeter 3D coordinates, categorized into Fishing spots, NPCs, Shrines, Agility shortcuts, and Chests. Served with zero-latency in-memory caching.
+- **Query Parameters**:
+  - `category` (optional): Comma-separated list of categories (`fishing`, `npcs`, `shrines`, `shortcuts`, `chests`, `geysers`, `all`).
+  - `refresh` (optional): `true` to force directory rescanning.
+- **Response Format**:
+  ```json
+  {
+    "status": "ok",
+    "cached": true,
+    "cache_age_seconds": 0.12,
+    "counts": {
+      "fishing": 36,
+      "npcs": 24,
+      "shrines": 6,
+      "shortcuts": 3,
+      "chests": 43
+    },
+    "actors": {
+      "fishing": [
+        {
+          "id": "UAID_DC97BA249CD4FCC402_1335208840",
+          "title": "Net Fishing Spot",
+          "category": "fishing",
+          "cell": "RSACell12800_X0_Y13",
+          "world_pos": { "x": 3406.0, "y": 178721.0, "z": -3167.7 },
+          "map_coords": { "x": 206.1, "y": 485.1 },
+          "hint": "Requires Small Fishing Net. Harvests trout, salmon, and river fish."
+        }
+      ]
+    }
+  }
+  ```
+
+

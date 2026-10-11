@@ -30,3 +30,12 @@ SERVER_CONFIG_PATH = os.getenv(
         else ""
     )
 )
+
+SPUD_CACHE_PATH = os.getenv(
+    "SPUD_CACHE_PATH",
+    "/spudcache" if os.path.exists("/spudcache") else (
+        r"C:\DragonwildsServer\RSDragonwilds\Saved\SpudCache"
+        if os.path.exists(r"C:\DragonwildsServer\RSDragonwilds\Saved\SpudCache")
+        else ""
+    )
+)

@@ -59,6 +59,18 @@ def api_world_regions():
     return jsonify(get_canonical_regions())
 
 
+@app.route("/api/world/actors")
+def api_world_actors():
+    from worldactors import get_world_actor_manager
+    import config
+    categories_param = request.args.get("category", "")
+    categories = [c.strip() for c in categories_param.split(",") if c.strip()] if categories_param else None
+    force_refresh = request.args.get("refresh", "").lower() in ("1", "true", "yes")
+    manager = get_world_actor_manager(config.SPUD_CACHE_PATH)
+    return jsonify(manager.get_actors(categories=categories, force_refresh=force_refresh))
+
+
+
 @app.route("/api/respawns")
 def api_respawns():
     from respawns import get_respawn_tracker
@@ -958,6 +970,9 @@ def index():
         <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:space-between;">
           <div class="pill-group" id="map-layer-pills">
             <button class="pill-btn active" id="btn-layer-all" onclick="toggleMapLayer('all', this)">All Layers</button>
+            <button class="pill-btn" id="btn-layer-fishing" onclick="toggleMapLayer('fishing', this)">🎣 Fishing</button>
+            <button class="pill-btn" id="btn-layer-npcs" onclick="toggleMapLayer('npcs', this)">👤 NPCs</button>
+            <button class="pill-btn" id="btn-layer-shrines" onclick="toggleMapLayer('shrines', this)">✨ Shrines</button>
             <button class="pill-btn" id="btn-layer-chests" onclick="toggleMapLayer('chests', this)">Chests & Caches</button>
             <button class="pill-btn" id="btn-layer-bosses" onclick="toggleMapLayer('bosses', this)">Boss Arenas</button>
             <button class="pill-btn" id="btn-layer-graves" onclick="toggleMapLayer('graves', this)">🪦 Gravestones</button>
@@ -965,7 +980,7 @@ def index():
             <button class="pill-btn" id="btn-layer-weather" onclick="toggleMapLayer('weather', this)">Regional Weather</button>
           </div>
           <div style="display:flex; gap:8px; align-items:center;">
-            <input type="text" id="map-search-input" placeholder="Find region, chest, grave, or arena..." oninput="filterMapMarkersLive()"
+            <input type="text" id="map-search-input" placeholder="Find region, NPC, fishing, chest, or grave..." oninput="filterMapMarkersLive()"
                    style="background:#131c2e; border:1px solid #1e2c45; color:#f8fafc; padding:8px 12px; border-radius:8px; font-size:13px; outline:none; min-width:260px;">
           </div>
         </div>
@@ -986,30 +1001,34 @@ def index():
             </div>
 
             <!-- Legend Overlay -->
-            <div style="position:absolute; top:14px; left:14px; background:rgba(15, 23, 42, 0.88); padding:8px 12px; border-radius:8px; border:1px solid #1e293b; font-size:11.5px; z-index:10; backdrop-filter:blur(4px);">
+            <div style="position:absolute; top:14px; left:14px; background:rgba(15, 23, 42, 0.88); padding:8px 12px; border-radius:8px; border:1px solid #1e293b; font-size:11px; z-index:10; backdrop-filter:blur(4px);">
               <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">
-                <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#38bdf8;"></span>
+                <span style="display:inline-block; width:9px; height:9px; border-radius:50%; background:#06b6d4;"></span>
+                <span style="color:#cbd5e1;">🎣 Fishing (Net / Rod)</span>
+              </div>
+              <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">
+                <span style="display:inline-block; width:9px; height:9px; border-radius:50%; background:#f59e0b;"></span>
+                <span style="color:#cbd5e1;">👤 NPC / Quest</span>
+              </div>
+              <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">
+                <span style="display:inline-block; width:9px; height:9px; border-radius:50%; background:#ec4899;"></span>
+                <span style="color:#cbd5e1;">✨ Shrine / Relic</span>
+              </div>
+              <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">
+                <span style="display:inline-block; width:9px; height:9px; border-radius:50%; background:#38bdf8;"></span>
                 <span style="color:#cbd5e1;">Canonical Region</span>
               </div>
               <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">
-                <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#10b981;"></span>
-                <span style="color:#cbd5e1;">Loot Cache (Ready)</span>
+                <span style="display:inline-block; width:9px; height:9px; border-radius:50%; background:#10b981;"></span>
+                <span style="color:#cbd5e1;">Loot Cache</span>
               </div>
               <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">
-                <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#f59e0b;"></span>
-                <span style="color:#cbd5e1;">Loot Cache (Respawning)</span>
-              </div>
-              <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">
-                <span style="display:inline-block; width:10px; height:10px; transform:rotate(45deg); background:#ef4444;"></span>
+                <span style="display:inline-block; width:9px; height:9px; transform:rotate(45deg); background:#ef4444;"></span>
                 <span style="color:#cbd5e1;">Boss Arena Gate</span>
               </div>
-              <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">
-                <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#a855f7;"></span>
-                <span style="color:#cbd5e1;">Player Gravestone</span>
-              </div>
               <div style="display:flex; align-items:center; gap:6px;">
-                <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#06b6d4;"></span>
-                <span style="color:#cbd5e1;">Claimed Camp / Bed</span>
+                <span style="display:inline-block; width:9px; height:9px; border-radius:50%; background:#a855f7;"></span>
+                <span style="color:#cbd5e1;">🪦 Gravestone</span>
               </div>
             </div>
           </div>
@@ -2655,6 +2674,10 @@ let mapBosses = [];
 let mapWeather = [];
 let mapGraves = [];
 let mapCamps = [];
+let mapFishing = [];
+let mapNPCs = [];
+let mapShrines = [];
+let mapShortcuts = [];
 let mapInitialized = false;
 let mapSelectedTarget = null;
 let mapHoveredTarget = null;
@@ -2744,12 +2767,13 @@ async function initWorldMap() {
 
 async function refreshMapData() {
   try {
-    const [resReg, resResp, resBoss, resWeath, resCamp] = await Promise.all([
+    const [resReg, resResp, resBoss, resWeath, resCamp, resActors] = await Promise.all([
       fetch('/api/world/regions').then(r => r.json()).catch(() => []),
       fetch('/api/respawns').then(r => r.json()).catch(() => []),
       fetch('/api/bosses').then(r => r.json()).catch(() => ({ encounters: [] })),
       fetch('/api/weather').then(r => r.json()).catch(() => []),
-      fetch('/api/campaign').then(r => r.json()).catch(() => ({}))
+      fetch('/api/campaign').then(r => r.json()).catch(() => ({})),
+      fetch('/api/world/actors?category=fishing,npcs,shrines,shortcuts').then(r => r.json()).catch(() => ({}))
     ]);
 
     mapRegions = Array.isArray(resReg) ? resReg : [];
@@ -2758,6 +2782,11 @@ async function refreshMapData() {
     mapWeather = Array.isArray(resWeath) ? resWeath : [];
     mapGraves = (resCamp && resCamp.death_markers) ? resCamp.death_markers : [];
     mapCamps = (resCamp && resCamp.camps) ? resCamp.camps : [];
+    const actData = (resActors && resActors.actors) || {};
+    mapFishing = actData.fishing || [];
+    mapNPCs = actData.npcs || [];
+    mapShrines = actData.shrines || [];
+    mapShortcuts = actData.shortcuts || [];
 
     if (!mapSelectedTarget && mapRegions.length > 0) {
       const central = mapRegions.find(r => r.id === 'MapRegionCourtyard') || mapRegions[0];
@@ -2765,6 +2794,7 @@ async function refreshMapData() {
     }
   } catch(e) {}
 }
+
 
 function setupMapEventListeners() {
   if (!mapCanvas) return;
@@ -2934,7 +2964,34 @@ function getBossWorldCoords(boss) {
 function findMapMarkerAt(wx, wy) {
   const hitTol = Math.max(12, 18 / mapTransform.scale);
 
-  // 1. Bosses
+  // 1. Fishing Nodes
+  if (mapFilterLayer === 'all' || mapFilterLayer === 'fishing') {
+    for (const f of mapFishing) {
+      if (Math.hypot(wx - f.map_coords.x, wy - f.map_coords.y) <= hitTol) {
+        return { type: 'fishing', data: f, wx: f.map_coords.x, wy: f.map_coords.y };
+      }
+    }
+  }
+
+  // 2. NPCs & Quest Givers
+  if (mapFilterLayer === 'all' || mapFilterLayer === 'npcs') {
+    for (const n of mapNPCs) {
+      if (Math.hypot(wx - n.map_coords.x, wy - n.map_coords.y) <= hitTol) {
+        return { type: 'npc', data: n, wx: n.map_coords.x, wy: n.map_coords.y };
+      }
+    }
+  }
+
+  // 3. Sacred Shrines
+  if (mapFilterLayer === 'all' || mapFilterLayer === 'shrines') {
+    for (const s of mapShrines) {
+      if (Math.hypot(wx - s.map_coords.x, wy - s.map_coords.y) <= hitTol) {
+        return { type: 'shrine', data: s, wx: s.map_coords.x, wy: s.map_coords.y };
+      }
+    }
+  }
+
+  // 4. Bosses
   if (mapFilterLayer === 'all' || mapFilterLayer === 'bosses') {
     for (const b of mapBosses) {
       const bw = getBossWorldCoords(b);
@@ -2943,6 +3000,7 @@ function findMapMarkerAt(wx, wy) {
       }
     }
   }
+
 
   // 2. Chests
   if (mapFilterLayer === 'all' || mapFilterLayer === 'chests') {
@@ -3133,6 +3191,65 @@ function selectMapMarker(target, doRender = true) {
       </div>
     `;
     loreEl.innerText = `Active player bedroll anchor registered in active server save. Functions as territorial respawn point.`;
+  } else if (target.type === 'fishing') {
+    const f = target.data;
+    titleEl.innerText = f.title;
+    subEl.innerText = `Fishing Resource • Grid Cell: ${f.cell} • Water Elevation: ${f.world_pos.z} cm`;
+    chestsEl.innerHTML = `
+      <div style="background:#131c2e; border:1px solid #1e2c45; padding:10px; border-radius:8px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <span style="font-size:13px; font-weight:600; color:#f8fafc;">Fishing Node Details</span>
+          <span style="background:#083344; color:#67e8f9; padding:3px 8px; border-radius:4px; font-size:11px; font-weight:bold;">🎣 Active Spot</span>
+        </div>
+        <div style="font-size:12px; color:#94a3b8; line-height:1.6;">
+          <div><strong>Fishing Method:</strong> <span style="color:#f8fafc;">${escapeHtml(f.title)}</span></div>
+          <div><strong>Requirement:</strong> <span style="color:#67e8f9;">${escapeHtml(f.hint)}</span></div>
+          <div><strong>World Grid Cell:</strong> <span style="font-family:monospace; color:#cbd5e1;">${escapeHtml(f.cell)}</span></div>
+          <div><strong>Exact 3D Coordinates:</strong> <span style="color:#38bdf8;">X=${f.world_pos.x}, Y=${f.world_pos.y}, Z=${f.world_pos.z}</span></div>
+          <div><strong>Persistence UAID:</strong> <span style="font-family:monospace; font-size:11px; color:#64748b;">${escapeHtml(f.id)}</span></div>
+        </div>
+      </div>
+    `;
+    loreEl.innerText = `Permanent world fishing spawner stream-loaded from Unreal Engine level geometry. Harvestable by players with appropriate tackle.`;
+  } else if (target.type === 'npc') {
+    const n = target.data;
+    titleEl.innerText = n.title;
+    subEl.innerText = `Interactive NPC • Grid Cell: ${n.cell} • Elevation: ${n.world_pos.z} cm`;
+    chestsEl.innerHTML = `
+      <div style="background:#131c2e; border:1px solid #1e2c45; padding:10px; border-radius:8px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <span style="font-size:13px; font-weight:600; color:#f8fafc;">Character Status</span>
+          <span style="background:#78350f; color:#fde68a; padding:3px 8px; border-radius:4px; font-size:11px; font-weight:bold;">👤 Persistent Character</span>
+        </div>
+        <div style="font-size:12px; color:#94a3b8; line-height:1.6;">
+          <div><strong>Role & Interaction:</strong> <span style="color:#f8fafc;">${escapeHtml(n.hint)}</span></div>
+          <div><strong>World Grid Cell:</strong> <span style="font-family:monospace; color:#cbd5e1;">${escapeHtml(n.cell)}</span></div>
+          <div><strong>Blueprint Class:</strong> <span style="font-family:monospace; font-size:11px; color:#cbd5e1;">${escapeHtml(n.class_name)}</span></div>
+          <div><strong>Exact 3D Coordinates:</strong> <span style="color:#38bdf8;">X=${n.world_pos.x}, Y=${n.world_pos.y}, Z=${n.world_pos.z}</span></div>
+          <div><strong>Persistence UAID:</strong> <span style="font-family:monospace; font-size:11px; color:#64748b;">${escapeHtml(n.id)}</span></div>
+        </div>
+      </div>
+    `;
+    loreEl.innerText = n.hint || `World character registered in active level persistence cache.`;
+  } else if (target.type === 'shrine') {
+    const s = target.data;
+    titleEl.innerText = s.title;
+    subEl.innerText = `Sacred Monument • Grid Cell: ${s.cell} • Elevation: ${s.world_pos.z} cm`;
+    chestsEl.innerHTML = `
+      <div style="background:#131c2e; border:1px solid #1e2c45; padding:10px; border-radius:8px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <span style="font-size:13px; font-weight:600; color:#f8fafc;">Monument Blessing</span>
+          <span style="background:#500724; color:#fbcfe8; padding:3px 8px; border-radius:4px; font-size:11px; font-weight:bold;">✨ Active Shrine</span>
+        </div>
+        <div style="font-size:12px; color:#94a3b8; line-height:1.6;">
+          <div><strong>Sanctuary Effect:</strong> <span style="color:#f8fafc;">${escapeHtml(s.hint)}</span></div>
+          <div><strong>World Grid Cell:</strong> <span style="font-family:monospace; color:#cbd5e1;">${escapeHtml(s.cell)}</span></div>
+          <div><strong>Exact 3D Coordinates:</strong> <span style="color:#38bdf8;">X=${s.world_pos.x}, Y=${s.world_pos.y}, Z=${s.world_pos.z}</span></div>
+          <div><strong>Persistence UAID:</strong> <span style="font-family:monospace; font-size:11px; color:#64748b;">${escapeHtml(s.id)}</span></div>
+        </div>
+      </div>
+    `;
+    loreEl.innerText = s.hint || `Sacred landmark in Ashenfall.`;
   }
 
   if (doRender) renderWorldMap();
@@ -3270,7 +3387,20 @@ function drawHoverTooltip(ctx, target, mx, my) {
     title = target.data.name;
     badge = '⛺ Claimed Bedroll Camp';
     badgeColor = '#67e8f9';
+  } else if (target.type === 'fishing') {
+    title = target.data.title;
+    badge = `🎣 Fishing Spot (${target.data.cell})`;
+    badgeColor = '#06b6d4';
+  } else if (target.type === 'npc') {
+    title = target.data.title;
+    badge = `👤 NPC / Quest (${target.data.cell})`;
+    badgeColor = '#f59e0b';
+  } else if (target.type === 'shrine') {
+    title = target.data.title;
+    badge = `✨ Shrine (${target.data.cell})`;
+    badgeColor = '#ec4899';
   }
+
 
   ctx.font = 'bold 12px system-ui, sans-serif';
   const titleWidth = ctx.measureText(title).width;
@@ -3541,7 +3671,107 @@ function renderWorldMap() {
     }
   }
 
+  // 8. Fishing Spots (Net & Rod)
+  if (mapFilterLayer === 'all' || mapFilterLayer === 'fishing') {
+    for (const f of mapFishing) {
+      const isSelected = mapSelectedTarget && mapSelectedTarget.type === 'fishing' && mapSelectedTarget.data.id === f.id;
+      const isHovered = mapHoveredTarget && mapHoveredTarget.type === 'fishing' && mapHoveredTarget.data.id === f.id;
+      const isMatch = !mapSearchQuery || f.title.toLowerCase().includes(mapSearchQuery) || f.cell.toLowerCase().includes(mapSearchQuery);
+
+      ctx.beginPath();
+      ctx.arc(f.map_coords.x, f.map_coords.y, 6, 0, Math.PI * 2);
+      ctx.fillStyle = isMatch ? '#06b6d4' : '#475569';
+      ctx.fill();
+      ctx.strokeStyle = '#070b14';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.arc(f.map_coords.x, f.map_coords.y, 10, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(6, 182, 212, 0.45)';
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+
+      if (isSelected || isHovered) {
+        ctx.beginPath();
+        ctx.arc(f.map_coords.x, f.map_coords.y, 15, 0, Math.PI * 2);
+        ctx.strokeStyle = isSelected ? '#38bdf8' : '#ffffff';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+
+      if ((isSelected || isHovered || mapTransform.scale >= 1.35) && isMatch) {
+        drawMapLabel(ctx, '🎣 ' + f.title, f.map_coords.x, f.map_coords.y + 15, '#a5f3fc', 'rgba(8, 51, 68, 0.9)');
+      }
+    }
+  }
+
+  // 9. Interactive NPCs & Quest Givers
+  if (mapFilterLayer === 'all' || mapFilterLayer === 'npcs') {
+    for (const n of mapNPCs) {
+      const isSelected = mapSelectedTarget && mapSelectedTarget.type === 'npc' && mapSelectedTarget.data.id === n.id;
+      const isHovered = mapHoveredTarget && mapHoveredTarget.type === 'npc' && mapHoveredTarget.data.id === n.id;
+      const isMatch = !mapSearchQuery || n.title.toLowerCase().includes(mapSearchQuery) || n.cell.toLowerCase().includes(mapSearchQuery);
+
+      ctx.beginPath();
+      ctx.arc(n.map_coords.x, n.map_coords.y, 7, 0, Math.PI * 2);
+      ctx.fillStyle = isMatch ? '#f59e0b' : '#475569';
+      ctx.fill();
+      ctx.strokeStyle = '#070b14';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.arc(n.map_coords.x, n.map_coords.y, 11, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(245, 158, 11, 0.55)';
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+
+      if (isSelected || isHovered) {
+        ctx.beginPath();
+        ctx.arc(n.map_coords.x, n.map_coords.y, 16, 0, Math.PI * 2);
+        ctx.strokeStyle = isSelected ? '#38bdf8' : '#ffffff';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+
+      if ((isSelected || isHovered || mapTransform.scale >= 1.25) && isMatch) {
+        drawMapLabel(ctx, '👤 ' + n.title, n.map_coords.x, n.map_coords.y + 16, '#fef08a', 'rgba(69, 26, 3, 0.9)');
+      }
+    }
+  }
+
+  // 10. Shrines & Sacred Relics
+  if (mapFilterLayer === 'all' || mapFilterLayer === 'shrines') {
+    for (const s of mapShrines) {
+      const isSelected = mapSelectedTarget && mapSelectedTarget.type === 'shrine' && mapSelectedTarget.data.id === s.id;
+      const isHovered = mapHoveredTarget && mapHoveredTarget.type === 'shrine' && mapHoveredTarget.data.id === s.id;
+      const isMatch = !mapSearchQuery || s.title.toLowerCase().includes(mapSearchQuery);
+
+      ctx.beginPath();
+      ctx.arc(s.map_coords.x, s.map_coords.y, 7, 0, Math.PI * 2);
+      ctx.fillStyle = isMatch ? '#ec4899' : '#475569';
+      ctx.fill();
+      ctx.strokeStyle = '#070b14';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      if (isSelected || isHovered) {
+        ctx.beginPath();
+        ctx.arc(s.map_coords.x, s.map_coords.y, 16, 0, Math.PI * 2);
+        ctx.strokeStyle = isSelected ? '#38bdf8' : '#ffffff';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+
+      if ((isSelected || isHovered || mapTransform.scale >= 1.25) && isMatch) {
+        drawMapLabel(ctx, '✨ ' + s.title, s.map_coords.x, s.map_coords.y + 16, '#fbcfe8', 'rgba(80, 7, 36, 0.9)');
+      }
+    }
+  }
+
   ctx.restore();
+
 
   // 8. Compass Rose Indicator in Top-Right
   drawCompassRose(ctx, width - 42, 42);

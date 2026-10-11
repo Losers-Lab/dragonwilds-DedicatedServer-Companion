@@ -10,10 +10,13 @@ services:
       - "C:/DragonwildsServer/RSDragonwilds/Saved/SaveGames:/savegames:ro"
       - "C:/DragonwildsServer/RSDragonwilds/Saved/Logs:/logs:ro"
       - "C:/DragonwildsServer/RSDragonwilds/Saved/Config/WindowsServer:/serverconfig:ro"
+      - "C:/DragonwildsServer/RSDragonwilds/Saved/SpudCache:/spudcache:ro"
     environment:
       SAVE_PATH: /savegames
       LOG_PATH: /logs/RSDragonwilds.log
       SERVER_CONFIG_PATH: /serverconfig/DedicatedServer.ini
+      SPUD_CACHE_PATH: /spudcache
+
       MAX_PLAYERS: 6
       SERVER_NAME: Dragonwilds
       PORT: 9876
