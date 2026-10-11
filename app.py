@@ -68,6 +68,20 @@ def api_respawns():
     return jsonify(tracker.get_respawns(category_filter=category, search_query=search))
 
 
+@app.route("/api/farming")
+def api_farming():
+    from farming import get_farming_status
+    return jsonify(get_farming_status())
+
+
+@app.route("/api/items")
+def api_items():
+    from items import get_master_items
+    category = request.args.get("category", "all")
+    search = request.args.get("search", "").strip()
+    return jsonify(get_master_items(category=category, search_query=search))
+
+
 @app.route("/api/roster")
 def api_roster():
     st = get_state()
@@ -364,6 +378,13 @@ def index():
         <span>Respawns</span>
         <span class="badge" id="nav-respawns-count">0</span>
       </a>
+      <a class="nav-link" data-tab="farming" onclick="setTab('farming')">
+        <span>Agriculture</span>
+      </a>
+      <a class="nav-link" data-tab="items" onclick="setTab('items')">
+        <span>Items</span>
+        <span class="badge" id="nav-items-count">1.7k</span>
+      </a>
       <a class="nav-link" data-tab="players" onclick="setTab('players')">
         <span>Players</span>
         <span class="badge" id="nav-players-count">0</span>
@@ -382,6 +403,14 @@ def index():
       </a>
       <a href="/api/respawns" target="_blank">
         <span>API Respawns</span>
+        <span style="font-size:11px;">↗</span>
+      </a>
+      <a href="/api/farming" target="_blank">
+        <span>API Agriculture</span>
+        <span style="font-size:11px;">↗</span>
+      </a>
+      <a href="/api/items" target="_blank">
+        <span>API Items</span>
         <span style="font-size:11px;">↗</span>
       </a>
       <a href="/api/weather" target="_blank">
@@ -424,6 +453,8 @@ def index():
     <div class="mobile-nav">
       <a class="mobile-link active" data-tab="overview" onclick="setTab('overview')">Overview</a>
       <a class="mobile-link" data-tab="respawns" onclick="setTab('respawns')">Respawns</a>
+      <a class="mobile-link" data-tab="farming" onclick="setTab('farming')">Agriculture</a>
+      <a class="mobile-link" data-tab="items" onclick="setTab('items')">Items</a>
       <a class="mobile-link" data-tab="players" onclick="setTab('players')">Players</a>
       <a class="mobile-link" data-tab="backups" onclick="setTab('backups')">Backups</a>
       <a class="mobile-link" data-tab="leaderboard" onclick="setTab('leaderboard')">Leaderboard</a>
@@ -875,6 +906,114 @@ def index():
         </div>
       </div>
     </div>
+
+    <!-- VIEW 7: AGRICULTURE & FARMING -->
+    <div id="view-farming" style="display:none;">
+      <div class="card" style="margin-bottom:20px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+          <div>
+            <h2 style="margin:0; font-size:20px; font-weight:bold; color:#f8fafc; display:flex; align-items:center; gap:8px;">
+              <span>🌱</span> Farming Plots & Agriculture Status
+            </h2>
+            <div style="font-size:13px; color:#94a3b8; margin-top:2px;">
+              Server-extracted telemetry of placed hydration infrastructure, rain catchers, composters, and growing trees.
+            </div>
+          </div>
+          <div>
+            <span class="data-source-badge saved" title="Extracted from active world save">💾 Save File</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid" id="farming-summary-grid">
+        <div class="card">
+          <div class="icon">💧</div>
+          <div class="label">Water Storage Barrels</div>
+          <div class="value" id="farm-stat-barrels">0</div>
+        </div>
+        <div class="card">
+          <div class="icon">🌧️</div>
+          <div class="label">Rain Catchers</div>
+          <div class="value" id="farm-stat-rain">0</div>
+        </div>
+        <div class="card">
+          <div class="icon">🍂</div>
+          <div class="label">Composting Stations</div>
+          <div class="value" id="farm-stat-composters">0</div>
+        </div>
+        <div class="card">
+          <div class="icon">🌳</div>
+          <div class="label">Growing Crops & Trees</div>
+          <div class="value" id="farm-stat-trees" style="color:#34d399;">0</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top:0; color:#f8fafc; font-size:16px;">Active In-World Agriculture Infrastructure</h3>
+        <table class="table" style="width:100%; text-align:left; border-collapse:collapse;">
+          <thead>
+            <tr style="border-bottom:1px solid #1c283f; color:#94a3b8; font-size:12px; text-transform:uppercase;">
+              <th>Infrastructure / Piece</th>
+              <th>System Role</th>
+              <th>World Count</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="farming-table-body">
+            <tr><td colspan="4" style="color:#94a3b8; text-align:center; padding:20px;">Loading agricultural save data...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- VIEW 8: MASTER ITEM CATALOG -->
+    <div id="view-items" style="display:none;">
+      <div class="card" style="margin-bottom:20px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:14px;">
+          <div>
+            <h2 style="margin:0; font-size:20px; font-weight:bold; color:#f8fafc; display:flex; align-items:center; gap:8px;">
+              <span>📦</span> Master Item Catalog
+            </h2>
+            <div style="font-size:13px; color:#94a3b8; margin-top:2px;">
+              Exhaustive official catalog of 1,704 items extracted directly from server game packages.
+            </div>
+          </div>
+          <div>
+            <span class="data-source-badge live" title="Direct index from game packages">⚡ Official Game Assets</span>
+          </div>
+        </div>
+
+        <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+          <input type="text" id="items-search-input" placeholder="Search 1,700+ weapons, armor, potions, tools, resources..." oninput="searchItemsLive()"
+                 style="flex:1; min-width:280px; background:#131c2e; border:1px solid #1e2c45; color:#f8fafc; padding:10px 14px; border-radius:8px; font-size:13.5px; outline:none;">
+          <select id="items-cat-select" onchange="searchItemsLive()"
+                  style="background:#131c2e; border:1px solid #1e2c45; color:#f8fafc; padding:10px 14px; border-radius:8px; font-size:13px; outline:none;">
+            <option value="all">All Item Categories</option>
+            <option value="Ammo">Ammunition & Arrows</option>
+            <option value="Armor">Armor & Equipment</option>
+            <option value="Weapons">Weapons</option>
+            <option value="Resources">Resources & Materials</option>
+            <option value="Consumables">Consumables & Food</option>
+            <option value="Tools">Tools</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="card">
+        <table class="table" style="width:100%; text-align:left; border-collapse:collapse;">
+          <thead>
+            <tr style="border-bottom:1px solid #1c283f; color:#94a3b8; font-size:12px; text-transform:uppercase;">
+              <th>Item Name</th>
+              <th>Engine Identifier</th>
+              <th>Category</th>
+            </tr>
+          </thead>
+          <tbody id="items-table-body">
+            <tr><td colspan="3" style="color:#94a3b8; text-align:center; padding:24px;">Loading master item catalog...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
   </main>
 </div>
 
@@ -925,6 +1064,9 @@ function setTab(tab) {
   const vEvents = document.getElementById('view-events');
   const vRespawns = document.getElementById('view-respawns');
 
+  const vFarming = document.getElementById('view-farming');
+  const vItems = document.getElementById('view-items');
+
   vOverview.style.display = 'none';
   vLogs.style.display = 'none';
   vPlayers.style.display = 'none';
@@ -932,6 +1074,8 @@ function setTab(tab) {
   vLeaderboard.style.display = 'none';
   vEvents.style.display = 'none';
   if (vRespawns) vRespawns.style.display = 'none';
+  if (vFarming) vFarming.style.display = 'none';
+  if (vItems) vItems.style.display = 'none';
 
   if (tab === 'overview') {
     title.innerText = 'Overview';
@@ -942,6 +1086,16 @@ function setTab(tab) {
     subtitle.innerText = 'Active timers for dungeon chests, fishing nets, world bosses & high-tier ores';
     if (vRespawns) vRespawns.style.display = 'block';
     loadRespawns();
+  } else if (tab === 'farming') {
+    title.innerText = 'Farming & Agriculture';
+    subtitle.innerText = 'Tracking placed hydration, composters, and growing agriculture plots';
+    if (vFarming) vFarming.style.display = 'block';
+    loadFarming();
+  } else if (tab === 'items') {
+    title.innerText = 'Master Item Catalog';
+    subtitle.innerText = 'Explore and search 1,704 official in-game items, weapons, and resources';
+    if (vItems) vItems.style.display = 'block';
+    loadMasterItems();
   } else if (tab === 'logs') {
     title.innerText = 'Server Logs';
     subtitle.innerText = 'Stream, filter and search RSDragonwilds server logs';
@@ -1595,12 +1749,116 @@ function renderRespawns() {
   }).join('');
 }
 
+// ----------------- AGRICULTURE & FARMING -----------------
+let farmingData = null;
+
+async function loadFarming() {
+  try {
+    const res = await fetch('/api/farming');
+    farmingData = await res.json();
+    renderFarming();
+  } catch(e) {}
+}
+
+function renderFarming() {
+  if (!farmingData) return;
+  const s = farmingData.summary || {};
+  const elBarrels = document.getElementById('farm-stat-barrels');
+  const elRain = document.getElementById('farm-stat-rain');
+  const elCompost = document.getElementById('farm-stat-composters');
+  const elTrees = document.getElementById('farm-stat-trees');
+
+  if (elBarrels) elBarrels.innerText = s.total_water_barrels || 0;
+  if (elRain) elRain.innerText = s.total_rain_catchers || 0;
+  if (elCompost) elCompost.innerText = s.total_composters || 0;
+  if (elTrees) elTrees.innerText = s.total_growing_trees || 0;
+
+  const tbody = document.getElementById('farming-table-body');
+  if (!tbody) return;
+
+  const structures = farmingData.structures || [];
+  const growing = farmingData.growing_trees || [];
+  const allEntries = [...structures, ...growing];
+
+  if (allEntries.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="4" style="color:#94a3b8; text-align:center; padding:20px;">No placed agriculture structures or planted crops detected in current save file.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = allEntries.map(item => `
+    <tr style="border-bottom:1px solid #141f33;">
+      <td style="padding:12px 14px; font-weight:600; color:#f8fafc;">${escapeHtml(item.name)}</td>
+      <td style="padding:12px 14px; color:#94a3b8; font-size:13px;">${escapeHtml(item.type || item.stage_tracking || 'Agriculture')}</td>
+      <td style="padding:12px 14px; font-weight:bold; color:#38bdf8;">${item.count || 0}</td>
+      <td style="padding:12px 14px;">
+        <span style="background:#064e3b; color:#34d399; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:600;">
+          ${escapeHtml(item.status || 'Active')}
+        </span>
+      </td>
+    </tr>
+  `).join('');
+}
+
+// ----------------- MASTER ITEMS CATALOG -----------------
+let masterItemsList = [];
+let itemsSearchTimeout = null;
+
+async function loadMasterItems() {
+  await searchItemsLive();
+}
+
+function searchItemsLive() {
+  clearTimeout(itemsSearchTimeout);
+  itemsSearchTimeout = setTimeout(async () => {
+    try {
+      const q = (document.getElementById('items-search-input')?.value || '').trim();
+      const cat = (document.getElementById('items-cat-select')?.value || 'all');
+      const res = await fetch(`/api/items?category=${encodeURIComponent(cat)}&search=${encodeURIComponent(q)}`);
+      masterItemsList = await res.json();
+      renderMasterItems();
+
+      const badge = document.getElementById('nav-items-count');
+      if (badge && !q && cat === 'all') {
+        badge.innerText = masterItemsList.length > 1000 ? `${(masterItemsList.length/1000).toFixed(1)}k` : masterItemsList.length;
+      }
+    } catch(e) {}
+  }, 200);
+}
+
+function renderMasterItems() {
+  const tbody = document.getElementById('items-table-body');
+  if (!tbody) return;
+
+  if (!masterItemsList || masterItemsList.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="3" style="color:#94a3b8; text-align:center; padding:24px;">No items match your search.</td></tr>';
+    return;
+  }
+
+  const itemsToShow = masterItemsList.slice(0, 150);
+  tbody.innerHTML = itemsToShow.map(it => `
+    <tr style="border-bottom:1px solid #141f33;">
+      <td style="padding:10px 14px; font-weight:600; color:#f8fafc;">${escapeHtml(it.name || it.id)}</td>
+      <td style="padding:10px 14px; font-family:monospace; color:#38bdf8; font-size:12px;">${escapeHtml(it.id)}</td>
+      <td style="padding:10px 14px;">
+        <span style="background:#1e293b; color:#cbd5e1; padding:2px 8px; border-radius:6px; font-size:11.5px; font-weight:500;">
+          ${escapeHtml(it.category || 'General')}
+        </span>
+      </td>
+    </tr>
+  `).join('');
+
+  if (masterItemsList.length > 150) {
+    tbody.innerHTML += `<tr><td colspan="3" style="color:#64748b; text-align:center; padding:12px; font-size:12px;">Showing first 150 of ${masterItemsList.length} items. Refine search query to filter further.</td></tr>`;
+  }
+}
+
 // ----------------- REFRESH LOOPS -----------------
 async function refreshAll() {
   await loadStatus();
   await loadLeaderboard();
   await loadSaveFiles();
   await loadRespawns();
+  if (currentTab === 'farming') await loadFarming();
   if (currentTab === 'players') await loadRoster();
   if (currentTab === 'logs' && isLive) {
     await fetchLogs();
@@ -1609,7 +1867,7 @@ async function refreshAll() {
 
 // Initial hash support
 const hash = (window.location.hash || '').replace('#', '');
-if (['overview', 'respawns', 'players', 'backups', 'leaderboard', 'events', 'logs'].includes(hash)) {
+if (['overview', 'respawns', 'farming', 'items', 'players', 'backups', 'leaderboard', 'events', 'logs'].includes(hash)) {
   setTab(hash);
 } else {
   setTab('overview');
@@ -1620,6 +1878,9 @@ setInterval(loadStatus, 4000);
 setInterval(() => {
   if (currentTab === 'respawns') {
     loadRespawns();
+  }
+  if (currentTab === 'farming') {
+    loadFarming();
   }
   if (currentTab === 'logs' && isLive) {
     fetchLogs();
