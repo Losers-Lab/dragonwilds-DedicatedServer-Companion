@@ -3002,7 +3002,7 @@ function findMapMarkerAt(wx, wy) {
   }
 
 
-  // 2. Chests
+  // 5. Chests
   if (mapFilterLayer === 'all' || mapFilterLayer === 'chests') {
     const liveChests = mapRespawns.filter(r => r.source === 'live_log' || r.category === 'Chests & Vaults');
     for (let i = 0; i < liveChests.length; i++) {
@@ -3014,7 +3014,7 @@ function findMapMarkerAt(wx, wy) {
     }
   }
 
-  // 3. Graves
+  // 6. Graves
   if (mapFilterLayer === 'all' || mapFilterLayer === 'graves') {
     for (let i = 0; i < mapGraves.length; i++) {
       const g = mapGraves[i];
@@ -3025,7 +3025,7 @@ function findMapMarkerAt(wx, wy) {
     }
   }
 
-  // 4. Camps
+  // 7. Camps
   if (mapFilterLayer === 'all' || mapFilterLayer === 'camps') {
     for (let i = 0; i < mapCamps.length; i++) {
       const camp = mapCamps[i];
@@ -3036,7 +3036,8 @@ function findMapMarkerAt(wx, wy) {
     }
   }
 
-  // 5. Canonical Regions
+  // 8. Canonical Regions
+
   for (const r of mapRegions) {
     const rx = r.x || 500;
     const ry = r.y || 500;
