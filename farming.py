@@ -34,11 +34,11 @@ def get_farming_status(saves_dir: str = SAVES_DIR) -> dict:
         with open(newest_save, "rb") as f:
             data = f.read()
 
-        # Count specific farming structures
-        barrels = len(re.findall(rb'BP_Farm_Barrel_Water', data))
-        rain_catchers = len(re.findall(rb'BP_Farm_RainCatcher', data))
-        composters = len(re.findall(rb'BP_Station_Composter_New', data))
-        growing_trees = len(re.findall(rb'FarmingGrowingTree_StageIndex_ServerOnly', data))
+        # Count specific farming structures using fast byte search
+        barrels = data.count(b'BP_Farm_Barrel_Water')
+        rain_catchers = data.count(b'BP_Farm_RainCatcher')
+        composters = data.count(b'BP_Station_Composter_New')
+        growing_trees = data.count(b'FarmingGrowingTree_StageIndex_ServerOnly')
 
         structures = []
         if barrels > 0:
@@ -63,16 +63,18 @@ def get_farming_status(saves_dir: str = SAVES_DIR) -> dict:
                 "status": "Active Infrastructure"
             })
 
+        growing_list = []
+        if growing_trees > 0:
+            growing_list.append({
+                "name": "Planted Agriculture Trees & Crops",
+                "count": growing_trees,
+                "stage_tracking": "FarmingGrowingTree_StageIndex_ServerOnly",
+                "status": "Active In-World Growth"
+            })
+
         return {
             "structures": structures,
-            "growing_trees": [
-                {
-                    "name": "Planted Agriculture Trees & Crops",
-                    "count": growing_trees,
-                    "stage_tracking": "FarmingGrowingTree_StageIndex_ServerOnly",
-                    "status": "Active In-World Growth"
-                }
-            ],
+            "growing_trees": growing_list,
             "summary": {
                 "total_water_barrels": barrels,
                 "total_rain_catchers": rain_catchers,

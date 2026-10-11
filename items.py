@@ -11,6 +11,19 @@ import json
 _catalog_cache = None
 
 
+CATEGORY_GROUPS = {
+    "armor": {"armour", "armor", "shield", "cape", "trinket", "jewellery"},
+    "weapons": {
+        "sword", "greatsword", "greataxe", "shortbow", "longbow", "crossbow",
+        "dagger", "mace", "club", "scimitar", "wand", "staff", "scarabstaff", "throwable"
+    },
+    "consumables": {"consumable", "consumables", "herb", "swampweed", "fishbait", "fishingbait"},
+    "resources": {"resources", "resource", "rune", "fuel", "animaorb"},
+    "tools": {"pickaxe", "spade", "fishingrod", "wateringcan", "bucket", "secateurs", "hammer", "logging"},
+    "ammo": {"ammo"},
+}
+
+
 def get_master_items(category: str = None, search_query: str = None) -> list:
     """Returns official master items with optional category and keyword filtering."""
     global _catalog_cache
@@ -22,9 +35,14 @@ def get_master_items(category: str = None, search_query: str = None) -> list:
         else:
             _catalog_cache = []
 
-    results = _catalog_cache
+    results = list(_catalog_cache)
     if category and category.lower() != "all":
-        results = [it for it in results if it.get("category", "").lower() == category.lower()]
+        cat_lower = category.lower()
+        if cat_lower in CATEGORY_GROUPS:
+            allowed = CATEGORY_GROUPS[cat_lower]
+            results = [it for it in results if it.get("category", "").lower() in allowed]
+        else:
+            results = [it for it in results if it.get("category", "").lower() == cat_lower]
 
     if search_query:
         q = search_query.lower()
