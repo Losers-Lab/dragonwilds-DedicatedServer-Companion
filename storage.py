@@ -166,10 +166,10 @@ def parse_storage_data(saves_dir: str = SAVES_DIR, save_filename: str = None) ->
 
                     slots_list = []
                     for slot_idx_str, slot_data in sorted(slots.items(), key=lambda x: int(x[0])):
-                        item_id = slot_data.get("ItemData", "Unknown")
-                        count = slot_data.get("Count", 1)
+                        item_id = slot_data.get("ItemData") or "Unknown"
+                        count = slot_data.get("Count") or 1
                         durability = slot_data.get("Durability")
-                        upgrades = slot_data.get("NumUpgradesApplied", 0)
+                        upgrades = slot_data.get("NumUpgradesApplied") or 0
 
                         slot_entry = {
                             "slot": int(slot_idx_str),
