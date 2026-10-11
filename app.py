@@ -939,10 +939,13 @@ def index():
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:14px;">
           <div>
             <h2 style="margin:0; font-size:20px; font-weight:bold; color:#f8fafc; display:flex; align-items:center; gap:8px;">
-              <span>🗺️</span> Interactive World Map & Territorial Radar
+              <span>🗺️</span> Interactive World Map of Ashenfall
             </h2>
             <div style="font-size:13px; color:#94a3b8; margin-top:2px;">
-              Geographical radar plotting all 31 canonical game regions, live chest respawns, player landmarks, and regional weather.
+              Topographical continent map with real-time loot respawns, boss trials, player landmarks, and regional weather.
+            </div>
+            <div style="font-size:11.5px; color:#64748b; margin-top:3px;">
+              Tip: Hover any pin to preview • Click to inspect details • Drag to pan • Scroll wheel to zoom
             </div>
           </div>
           <div style="display:flex; align-items:center; gap:8px;">
@@ -983,21 +986,21 @@ def index():
             </div>
 
             <!-- Legend Overlay -->
-            <div style="position:absolute; top:14px; left:14px; background:rgba(15, 23, 42, 0.85); padding:8px 12px; border-radius:8px; border:1px solid #1e293b; font-size:11.5px; z-index:10;">
+            <div style="position:absolute; top:14px; left:14px; background:rgba(15, 23, 42, 0.88); padding:8px 12px; border-radius:8px; border:1px solid #1e293b; font-size:11.5px; z-index:10; backdrop-filter:blur(4px);">
               <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">
                 <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#38bdf8;"></span>
-                <span style="color:#cbd5e1;">Canonical Region Hub</span>
+                <span style="color:#cbd5e1;">Canonical Region</span>
               </div>
               <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">
                 <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#10b981;"></span>
-                <span style="color:#cbd5e1;">Loot Ready</span>
+                <span style="color:#cbd5e1;">Loot Cache (Ready)</span>
               </div>
               <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">
                 <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#f59e0b;"></span>
-                <span style="color:#cbd5e1;">Respawning Timer</span>
+                <span style="color:#cbd5e1;">Loot Cache (Respawning)</span>
               </div>
               <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">
-                <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#ef4444;"></span>
+                <span style="display:inline-block; width:10px; height:10px; transform:rotate(45deg); background:#ef4444;"></span>
                 <span style="color:#cbd5e1;">Boss Arena Gate</span>
               </div>
               <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">
@@ -2645,7 +2648,7 @@ function renderLiveWorldEvents() {
   }).join('');
 }
 
-// ----------------- INTERACTIVE WORLD MAP & RADAR -----------------
+// ----------------- INTERACTIVE WORLD MAP (ASHENFALL) -----------------
 let mapRegions = [];
 let mapRespawns = [];
 let mapBosses = [];
@@ -2654,6 +2657,8 @@ let mapGraves = [];
 let mapCamps = [];
 let mapInitialized = false;
 let mapSelectedTarget = null;
+let mapHoveredTarget = null;
+let mapMousePos = { x: 0, y: 0 };
 let mapFilterLayer = 'all';
 let mapSearchQuery = '';
 let mapTransform = { x: 0, y: 0, scale: 0.85 };
@@ -2662,6 +2667,15 @@ let mapDragStart = { x: 0, y: 0 };
 let mapHasDragged = false;
 let mapCanvas = null;
 let mapCtx = null;
+
+// Preload Ashenfall Topographical Map Image
+const worldMapImg = new Image();
+let worldMapImgLoaded = false;
+worldMapImg.onload = () => {
+  worldMapImgLoaded = true;
+  renderWorldMap();
+};
+worldMapImg.src = '/static/ashenfall_world_map_1000.jpg';
 
 const MAP_ROADS = [
   ['MapRegionApproach', 'MapRegionPastures'],
@@ -2763,24 +2777,57 @@ function setupMapEventListeners() {
   });
 
   window.addEventListener('mousemove', (e) => {
-    if (!mapIsDragging) return;
-    mapHasDragged = true;
-    mapTransform.x = e.clientX - mapDragStart.x;
-    mapTransform.y = e.clientY - mapDragStart.y;
-    renderWorldMap();
+    if (!mapCanvas) return;
+    const rect = mapCanvas.getBoundingClientRect();
+    mapMousePos.x = e.clientX - rect.left;
+    mapMousePos.y = e.clientY - rect.top;
+
+    if (mapIsDragging) {
+      mapHasDragged = true;
+      mapTransform.x = e.clientX - mapDragStart.x;
+      mapTransform.y = e.clientY - mapDragStart.y;
+      renderWorldMap();
+      return;
+    }
+
+    if (e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom) {
+      const canvasX = (e.clientX - rect.left) * (mapCanvas.width / rect.width);
+      const canvasY = (e.clientY - rect.top) * (mapCanvas.height / rect.height);
+      const wx = (canvasX - mapCanvas.width / 2 - mapTransform.x) / mapTransform.scale + 500;
+      const wy = (canvasY - mapCanvas.height / 2 - mapTransform.y) / mapTransform.scale + 500;
+
+      const hit = findMapMarkerAt(wx, wy);
+      const prevHitId = mapHoveredTarget ? (mapHoveredTarget.data.id || mapHoveredTarget.data.name || mapHoveredTarget.data.index) : null;
+      const newHitId = hit ? (hit.data.id || hit.data.name || hit.data.index) : null;
+      if (prevHitId !== newHitId) {
+        mapHoveredTarget = hit;
+        mapCanvas.style.cursor = hit ? 'pointer' : 'grab';
+        renderWorldMap();
+      }
+    } else if (mapHoveredTarget) {
+      mapHoveredTarget = null;
+      renderWorldMap();
+    }
   });
 
   window.addEventListener('mouseup', () => {
     if (mapIsDragging) {
       mapIsDragging = false;
-      if (mapCanvas) mapCanvas.style.cursor = 'grab';
+      if (mapCanvas) mapCanvas.style.cursor = mapHoveredTarget ? 'pointer' : 'grab';
+    }
+  });
+
+  mapCanvas.addEventListener('mouseleave', () => {
+    if (mapHoveredTarget) {
+      mapHoveredTarget = null;
+      renderWorldMap();
     }
   });
 
   mapCanvas.addEventListener('wheel', (e) => {
     e.preventDefault();
     const zoomFactor = e.deltaY < 0 ? 1.15 : 0.87;
-    mapTransform.scale = Math.max(0.35, Math.min(3.5, mapTransform.scale * zoomFactor));
+    mapTransform.scale = Math.max(0.4, Math.min(3.5, mapTransform.scale * zoomFactor));
     renderWorldMap();
   }, { passive: false });
 
@@ -2816,7 +2863,7 @@ function setupMapEventListeners() {
       );
       if (lastTouchDist > 0) {
         const factor = dist / lastTouchDist;
-        mapTransform.scale = Math.max(0.35, Math.min(3.5, mapTransform.scale * factor));
+        mapTransform.scale = Math.max(0.4, Math.min(3.5, mapTransform.scale * factor));
         renderWorldMap();
       }
       lastTouchDist = dist;
@@ -2833,59 +2880,114 @@ function setupMapEventListeners() {
 
 function getGraveWorldCoords(grave, index) {
   const zone = grave.zone || 'Overworld';
-  let base = { x: 500, y: 520 };
-  if (zone === 'Brynmoore') base = { x: 540, y: 460 };
-  else if (zone === 'Ghornefell') base = { x: 540, y: 290 };
-  else if (zone === 'Dowdun Reach') base = { x: 510, y: 230 };
-  else if (zone === 'Fellhollow') base = { x: 520, y: 650 };
-  else if (zone === 'Umbral Sands') base = { x: 710, y: 760 };
+  let base = { x: 290, y: 520 };
+  if (zone === 'Brynmoore') base = { x: 280, y: 480 };
+  else if (zone === 'Ghornefell') base = { x: 560, y: 400 };
+  else if (zone === 'Dowdun Reach') base = { x: 420, y: 220 };
+  else if (zone === 'Fellhollow') base = { x: 240, y: 660 };
+  else if (zone === 'Umbral Sands') base = { x: 680, y: 580 };
 
-  const angle = (index * 1.85) % (Math.PI * 2);
-  const dist = 36 + ((index % 6) * 14);
+  const col = index % 4;
+  const row = Math.floor(index / 4);
   return {
-    wx: base.x + Math.cos(angle) * dist,
-    wy: base.y + Math.sin(angle) * dist
+    wx: base.x - 36 + (col * 24),
+    wy: base.y + 18 + (row * 20)
   };
 }
 
 function getCampWorldCoords(camp, index) {
-  const base = { x: 520, y: 520 };
-  const angle = (index * 2.1) % (Math.PI * 2);
-  const dist = 28 + (index * 16);
-  return {
-    wx: base.x + Math.cos(angle) * dist,
-    wy: base.y + Math.sin(angle) * dist
-  };
+  if (index === 0) return { wx: 340, wy: 520 };
+  if (index === 1) return { wx: 230, wy: 460 };
+  return { wx: 310 + (index * 26), wy: 540 };
 }
 
 function getChestWorldCoords(chest, index) {
   const zone = chest.zone || 'Overworld';
-  let base = { x: 480, y: 500 };
+  let base = { x: 280, y: 480 };
+  if (zone === 'Brynmoore') base = { x: 280, y: 480 };
+  else if (zone === 'Ghornefell') base = { x: 560, y: 400 };
+  else if (zone === 'Dowdun Reach') base = { x: 420, y: 220 };
+  else if (zone === 'Fellhollow') base = { x: 240, y: 660 };
+  else if (zone === 'Umbral Sands') base = { x: 680, y: 580 };
 
-  if (zone === 'Brynmoore') base = { x: 540, y: 460 };
-  else if (zone === 'Ghornefell') base = { x: 540, y: 290 };
-  else if (zone === 'Dowdun Reach') base = { x: 510, y: 230 };
-  else if (zone === 'Fellhollow') base = { x: 520, y: 650 };
-  else if (zone === 'Umbral Sands') base = { x: 710, y: 760 };
-
-  const angle = (index * 1.39) % (Math.PI * 2);
-  const dist = 32 + ((index % 5) * 12);
+  const col = index % 3;
+  const row = Math.floor(index / 3);
   return {
-    wx: base.x + Math.cos(angle) * dist,
-    wy: base.y + Math.sin(angle) * dist
+    wx: base.x - 28 + (col * 28),
+    wy: base.y - 42 - (row * 22)
   };
 }
 
 function getBossWorldCoords(boss) {
-  const n = (boss.name || '') + (boss.id || '');
-  if (n.includes('Dragon') || n.includes('Velgar')) return { wx: 750, wy: 330 };
-  if (n.includes('Kalphite')) return { wx: 750, wy: 780 };
-  if (n.includes('Fight Cave') || n.includes('Fuzan') || n.includes('TzTok')) return { wx: 830, wy: 240 };
-  if (n.includes('Nightmare') || n.includes('Demon')) return { wx: 860, wy: 320 };
-  if (n.includes('Titan') || n.includes('Knight')) return { wx: 670, wy: 380 };
-  if (n.includes('Sands')) return { wx: 660, wy: 740 };
-  if (n.includes('Death') || n.includes('Imaru')) return { wx: 520, wy: 650 };
-  return { wx: 500, wy: 500 };
+  const n = ((boss.name || '') + ' ' + (boss.id || '')).toLowerCase();
+  if (n.includes('dragon') || n.includes('velgar')) return { wx: 530, wy: 350 };
+  if (n.includes('kalphite')) return { wx: 720, wy: 720 };
+  if (n.includes('fight cave') || n.includes('fuzan') || n.includes('tztok') || n.includes('fight caves')) return { wx: 690, wy: 230 };
+  if (n.includes('demon') || n.includes('hellfire') || n.includes('gate')) return { wx: 550, wy: 450 };
+  if (n.includes('titan') || n.includes('bastion')) return { wx: 620, wy: 380 };
+  if (n.includes('burning spire') || n.includes('crucible')) return { wx: 570, wy: 400 };
+  if (n.includes('sands') || n.includes('oasis')) return { wx: 670, wy: 440 };
+  if (n.includes('death') || n.includes('imaru') || n.includes('crypt')) return { wx: 340, wy: 650 };
+  return { wx: 280, wy: 500 };
+}
+
+function findMapMarkerAt(wx, wy) {
+  const hitTol = Math.max(12, 18 / mapTransform.scale);
+
+  // 1. Bosses
+  if (mapFilterLayer === 'all' || mapFilterLayer === 'bosses') {
+    for (const b of mapBosses) {
+      const bw = getBossWorldCoords(b);
+      if (Math.hypot(wx - bw.wx, wy - bw.wy) <= hitTol) {
+        return { type: 'boss', data: b, wx: bw.wx, wy: bw.wy };
+      }
+    }
+  }
+
+  // 2. Chests
+  if (mapFilterLayer === 'all' || mapFilterLayer === 'chests') {
+    const liveChests = mapRespawns.filter(r => r.source === 'live_log' || r.category === 'Chests & Vaults');
+    for (let i = 0; i < liveChests.length; i++) {
+      const c = liveChests[i];
+      const cw = getChestWorldCoords(c, i);
+      if (Math.hypot(wx - cw.wx, wy - cw.wy) <= hitTol) {
+        return { type: 'chest', data: c, wx: cw.wx, wy: cw.wy };
+      }
+    }
+  }
+
+  // 3. Graves
+  if (mapFilterLayer === 'all' || mapFilterLayer === 'graves') {
+    for (let i = 0; i < mapGraves.length; i++) {
+      const g = mapGraves[i];
+      const gw = getGraveWorldCoords(g, i);
+      if (Math.hypot(wx - gw.wx, wy - gw.wy) <= hitTol) {
+        return { type: 'grave', data: g, wx: gw.wx, wy: gw.wy };
+      }
+    }
+  }
+
+  // 4. Camps
+  if (mapFilterLayer === 'all' || mapFilterLayer === 'camps') {
+    for (let i = 0; i < mapCamps.length; i++) {
+      const camp = mapCamps[i];
+      const cw = getCampWorldCoords(camp, i);
+      if (Math.hypot(wx - cw.wx, wy - cw.wy) <= hitTol) {
+        return { type: 'camp', data: camp, wx: cw.wx, wy: cw.wy };
+      }
+    }
+  }
+
+  // 5. Canonical Regions
+  for (const r of mapRegions) {
+    const rx = r.x || 500;
+    const ry = r.y || 500;
+    if (Math.hypot(wx - rx, wy - ry) <= 22) {
+      return { type: 'region', data: r, wx: rx, wy: ry };
+    }
+  }
+
+  return null;
 }
 
 function handleMapClick(e) {
@@ -2893,71 +2995,12 @@ function handleMapClick(e) {
   const rect = mapCanvas.getBoundingClientRect();
   const canvasX = (e.clientX - rect.left) * (mapCanvas.width / rect.width);
   const canvasY = (e.clientY - rect.top) * (mapCanvas.height / rect.height);
-
   const wx = (canvasX - mapCanvas.width / 2 - mapTransform.x) / mapTransform.scale + 500;
   const wy = (canvasY - mapCanvas.height / 2 - mapTransform.y) / mapTransform.scale + 500;
 
-  // 1. Check Boss markers
-  if (mapFilterLayer === 'all' || mapFilterLayer === 'bosses') {
-    for (const b of mapBosses) {
-      const bw = getBossWorldCoords(b);
-      const dist = Math.hypot(wx - bw.wx, wy - bw.wy);
-      if (dist <= 18 / mapTransform.scale) {
-        selectMapMarker({ type: 'boss', data: b, wx: bw.wx, wy: bw.wy });
-        return;
-      }
-    }
-  }
-
-  // 2. Check Chest markers
-  if (mapFilterLayer === 'all' || mapFilterLayer === 'chests') {
-    const liveChests = mapRespawns.filter(r => r.source === 'live_log' || r.category === 'Chests & Vaults');
-    for (let i = 0; i < liveChests.length; i++) {
-      const c = liveChests[i];
-      const cw = getChestWorldCoords(c, i);
-      const dist = Math.hypot(wx - cw.wx, wy - cw.wy);
-      if (dist <= 16 / mapTransform.scale) {
-        selectMapMarker({ type: 'chest', data: c, wx: cw.wx, wy: cw.wy });
-        return;
-      }
-    }
-  }
-
-  // 3. Check Gravestones
-  if (mapFilterLayer === 'all' || mapFilterLayer === 'graves') {
-    for (let i = 0; i < mapGraves.length; i++) {
-      const g = mapGraves[i];
-      const gw = getGraveWorldCoords(g, i);
-      const dist = Math.hypot(wx - gw.wx, wy - gw.wy);
-      if (dist <= 16 / mapTransform.scale) {
-        selectMapMarker({ type: 'grave', data: g, wx: gw.wx, wy: gw.wy });
-        return;
-      }
-    }
-  }
-
-  // 4. Check Player Camps
-  if (mapFilterLayer === 'all' || mapFilterLayer === 'camps') {
-    for (let i = 0; i < mapCamps.length; i++) {
-      const camp = mapCamps[i];
-      const cw = getCampWorldCoords(camp, i);
-      const dist = Math.hypot(wx - cw.wx, wy - cw.wy);
-      if (dist <= 16 / mapTransform.scale) {
-        selectMapMarker({ type: 'camp', data: camp, wx: cw.wx, wy: cw.wy });
-        return;
-      }
-    }
-  }
-
-  // 5. Check Canonical Regions
-  for (const r of mapRegions) {
-    const rx = r.x || 500;
-    const ry = r.y || 500;
-    const dist = Math.hypot(wx - rx, wy - ry);
-    if (dist <= 35) {
-      selectMapMarker({ type: 'region', data: r });
-      return;
-    }
+  const hit = findMapMarkerAt(wx, wy);
+  if (hit) {
+    selectMapMarker(hit);
   }
 }
 
@@ -3143,13 +3186,136 @@ function filterMapMarkersLive() {
   renderWorldMap();
 }
 
+function drawMapLabel(ctx, text, x, y, textColor = '#f8fafc', bgColor = 'rgba(15, 23, 42, 0.88)') {
+  ctx.save();
+  ctx.font = 'bold 10px system-ui, sans-serif';
+  const textWidth = ctx.measureText(text).width;
+  const padX = 6;
+  const h = 16;
+  ctx.fillStyle = bgColor;
+  ctx.beginPath();
+  if (ctx.roundRect) {
+    ctx.roundRect(x - textWidth / 2 - padX, y - h / 2, textWidth + padX * 2, h, 4);
+  } else {
+    ctx.rect(x - textWidth / 2 - padX, y - h / 2, textWidth + padX * 2, h);
+  }
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  ctx.fillStyle = textColor;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+function drawCompassRose(ctx, cx, cy) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(cx, cy, 22, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(217, 119, 6, 0.6)';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // North needle
+  ctx.fillStyle = '#ef4444';
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - 16);
+  ctx.lineTo(cx - 5, cy);
+  ctx.lineTo(cx, cy - 2);
+  ctx.fill();
+
+  // South needle
+  ctx.fillStyle = '#94a3b8';
+  ctx.beginPath();
+  ctx.moveTo(cx, cy + 16);
+  ctx.lineTo(cx + 5, cy);
+  ctx.lineTo(cx, cy + 2);
+  ctx.fill();
+
+  ctx.fillStyle = '#f8fafc';
+  ctx.font = 'bold 9px system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('N', cx, cy - 7);
+  ctx.restore();
+}
+
+function drawHoverTooltip(ctx, target, mx, my) {
+  ctx.save();
+  let title = '';
+  let badge = '';
+  let badgeColor = '#38bdf8';
+
+  if (target.type === 'region') {
+    title = target.data.name;
+    badge = `Territory • ${target.data.biome || 'Plains'}`;
+  } else if (target.type === 'boss') {
+    title = target.data.name;
+    badge = '⚔️ Boss Arena Gate';
+    badgeColor = '#f87171';
+  } else if (target.type === 'chest') {
+    title = target.data.name;
+    badge = target.data.is_ready ? '🟢 Ready to Loot' : `⏳ ${target.data.remaining_formatted}`;
+    badgeColor = target.data.is_ready ? '#34d399' : '#f59e0b';
+  } else if (target.type === 'grave') {
+    title = target.data.name;
+    badge = `🪦 Grave (${target.data.zone || 'Overworld'})`;
+    badgeColor = '#c084fc';
+  } else if (target.type === 'camp') {
+    title = target.data.name;
+    badge = '⛺ Claimed Bedroll Camp';
+    badgeColor = '#67e8f9';
+  }
+
+  ctx.font = 'bold 12px system-ui, sans-serif';
+  const titleWidth = ctx.measureText(title).width;
+  ctx.font = '11px system-ui, sans-serif';
+  const badgeWidth = ctx.measureText(badge).width;
+  const boxWidth = Math.max(titleWidth, badgeWidth) + 24;
+  const boxHeight = 44;
+
+  let bx = mx + 14;
+  let by = my - boxHeight - 8;
+  if (bx + boxWidth > ctx.canvas.width - 10) bx = mx - boxWidth - 14;
+  if (by < 10) by = my + 14;
+
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.95)';
+  ctx.beginPath();
+  if (ctx.roundRect) {
+    ctx.roundRect(bx, by, boxWidth, boxHeight, 6);
+  } else {
+    ctx.rect(bx, by, boxWidth, boxHeight);
+  }
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(56, 189, 248, 0.5)';
+  ctx.lineWidth = 1.2;
+  ctx.stroke();
+
+  ctx.fillStyle = '#f8fafc';
+  ctx.font = 'bold 12px system-ui, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText(title, bx + 12, by + 8);
+
+  ctx.fillStyle = badgeColor;
+  ctx.font = '11px system-ui, sans-serif';
+  ctx.fillText(badge, bx + 12, by + 24);
+
+  ctx.restore();
+}
+
 function renderWorldMap() {
   if (!mapCanvas || !mapCtx) return;
   const ctx = mapCtx;
   const width = mapCanvas.width;
   const height = mapCanvas.height;
 
-  // Clear canvas with deep radar slate background
+  // Clear canvas
   ctx.fillStyle = '#070b14';
   ctx.fillRect(0, 0, width, height);
 
@@ -3158,40 +3324,30 @@ function renderWorldMap() {
   ctx.scale(mapTransform.scale, mapTransform.scale);
   ctx.translate(-500, -500);
 
-  // 1. Radar Grid & Concentric Navigation Rings
-  ctx.strokeStyle = 'rgba(56, 189, 248, 0.06)';
-  ctx.lineWidth = 1;
-  for (const r of [160, 320, 480, 640]) {
-    ctx.beginPath();
-    ctx.arc(500, 500, r, 0, Math.PI * 2);
-    ctx.stroke();
+  // 1. Draw Ashenfall Topographical Continent Map
+  if (worldMapImgLoaded && worldMapImg.complete && worldMapImg.naturalWidth > 0) {
+    ctx.drawImage(worldMapImg, 0, 0, 1000, 1000);
+    ctx.strokeStyle = 'rgba(217, 119, 6, 0.4)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(0, 0, 1000, 1000);
+  } else {
+    ctx.fillStyle = '#111827';
+    ctx.fillRect(0, 0, 1000, 1000);
+    ctx.fillStyle = '#64748b';
+    ctx.font = '14px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Loading Ashenfall Topographical Map...', 500, 500);
   }
 
-  // Crosshairs
-  ctx.beginPath();
-  ctx.moveTo(500, 40); ctx.lineTo(500, 960);
-  ctx.moveTo(40, 500); ctx.lineTo(960, 500);
-  ctx.stroke();
-
-  // Compass Cardinal Markers
-  ctx.fillStyle = '#334155';
-  ctx.font = 'bold 13px system-ui, sans-serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText('N', 500, 30);
-  ctx.fillText('S', 500, 970);
-  ctx.fillText('W', 30, 500);
-  ctx.fillText('E', 970, 500);
-
-  // 2. Travel Roads / Leyline Pathways
+  // 2. Travel Roads / Leyline Pathways (amber trails)
   const regionMap = {};
   for (const reg of mapRegions) {
     regionMap[reg.id] = reg;
   }
 
-  ctx.strokeStyle = 'rgba(56, 189, 248, 0.16)';
+  ctx.strokeStyle = 'rgba(251, 191, 36, 0.35)';
   ctx.lineWidth = 2;
-  ctx.setLineDash([4, 4]);
+  ctx.setLineDash([5, 5]);
   for (const [r1Id, r2Id] of MAP_ROADS) {
     const r1 = regionMap[r1Id];
     const r2 = regionMap[r2Id];
@@ -3209,54 +3365,39 @@ function renderWorldMap() {
     const rx = reg.x || 500;
     const ry = reg.y || 500;
     const isSelected = mapSelectedTarget && mapSelectedTarget.type === 'region' && mapSelectedTarget.data.id === reg.id;
+    const isHovered = mapHoveredTarget && mapHoveredTarget.type === 'region' && mapHoveredTarget.data.id === reg.id;
     const isMatch = !mapSearchQuery || reg.name.toLowerCase().includes(mapSearchQuery) || (reg.biome || '').toLowerCase().includes(mapSearchQuery);
 
     const theme = BIOME_COLORS[reg.biome] || BIOME_COLORS['Plains'];
 
-    // Outer halo
-    ctx.beginPath();
-    ctx.arc(rx, ry, isSelected ? 32 : 26, 0, Math.PI * 2);
-    ctx.fillStyle = isMatch ? theme.fill : 'rgba(30, 41, 59, 0.15)';
-    ctx.fill();
-    ctx.strokeStyle = isMatch ? theme.stroke : '#334155';
-    ctx.lineWidth = isSelected ? 3 : 1.5;
-    ctx.stroke();
-
-    // Central hub pip
-    ctx.beginPath();
-    ctx.arc(rx, ry, 4, 0, Math.PI * 2);
-    ctx.fillStyle = isSelected ? '#38bdf8' : (isMatch ? theme.stroke : '#64748b');
-    ctx.fill();
-
-    // Selection Pulsing Ring
-    if (isSelected) {
+    if (isSelected || isHovered) {
       ctx.beginPath();
-      ctx.arc(rx, ry, 42, 0, Math.PI * 2);
-      ctx.strokeStyle = 'rgba(56, 189, 248, 0.7)';
+      ctx.arc(rx, ry, isSelected ? 22 : 18, 0, Math.PI * 2);
+      ctx.strokeStyle = isSelected ? '#38bdf8' : '#ffffff';
       ctx.lineWidth = 2;
-      ctx.setLineDash([3, 3]);
       ctx.stroke();
-      ctx.setLineDash([]);
     }
 
-    // Region Labels
-    ctx.fillStyle = isMatch ? '#f8fafc' : '#64748b';
-    ctx.font = 'bold 11px system-ui, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'top';
-    ctx.fillText(reg.name, rx, ry + (isSelected ? 34 : 28));
+    ctx.beginPath();
+    ctx.arc(rx, ry, 7, 0, Math.PI * 2);
+    ctx.fillStyle = isMatch ? theme.stroke : '#475569';
+    ctx.fill();
+    ctx.strokeStyle = '#070b14';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
 
-    ctx.fillStyle = isMatch ? theme.text : '#475569';
-    ctx.font = '9px system-ui, sans-serif';
-    ctx.fillText(reg.biome || 'Territory', rx, ry + (isSelected ? 47 : 41));
-
-    // Weather Badge on region if layer enabled
     if (mapFilterLayer === 'all' || mapFilterLayer === 'weather') {
       const matchWeather = mapWeather.find(w => (w.region || '').toLowerCase().includes(reg.name.toLowerCase()));
       if (matchWeather) {
         ctx.font = '14px system-ui, sans-serif';
-        ctx.fillText(matchWeather.icon || '☀️', rx, ry - 38);
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(matchWeather.icon || '☀️', rx, ry - 16);
       }
+    }
+
+    if ((isSelected || isHovered || mapTransform.scale >= 1.35) && isMatch) {
+      drawMapLabel(ctx, reg.name, rx, ry + 16, '#f8fafc', 'rgba(15, 23, 42, 0.9)');
     }
   }
 
@@ -3265,35 +3406,32 @@ function renderWorldMap() {
     for (const b of mapBosses) {
       const bw = getBossWorldCoords(b);
       const isSelected = mapSelectedTarget && mapSelectedTarget.type === 'boss' && mapSelectedTarget.data.name === b.name;
+      const isHovered = mapHoveredTarget && mapHoveredTarget.type === 'boss' && mapHoveredTarget.data.name === b.name;
       const isMatch = !mapSearchQuery || b.name.toLowerCase().includes(mapSearchQuery);
 
-      // Diamond marker
       ctx.save();
       ctx.translate(bw.wx, bw.wy);
       ctx.rotate(Math.PI / 4);
 
       ctx.beginPath();
-      ctx.rect(-9, -9, 18, 18);
-      ctx.fillStyle = isMatch ? 'rgba(239, 68, 68, 0.85)' : 'rgba(71, 85, 105, 0.4)';
+      ctx.rect(-8, -8, 16, 16);
+      ctx.fillStyle = isMatch ? 'rgba(239, 68, 68, 0.9)' : 'rgba(71, 85, 105, 0.5)';
       ctx.fill();
-      ctx.strokeStyle = isSelected ? '#38bdf8' : '#fbbf24';
-      ctx.lineWidth = 2;
+      ctx.strokeStyle = isSelected ? '#38bdf8' : (isHovered ? '#ffffff' : '#fbbf24');
+      ctx.lineWidth = isSelected ? 2.5 : 1.5;
       ctx.stroke();
       ctx.restore();
 
-      // Boss Label
-      ctx.fillStyle = isMatch ? '#fca5a5' : '#64748b';
-      ctx.font = 'bold 10.5px system-ui, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'bottom';
-      ctx.fillText('⚔️ ' + b.name, bw.wx, bw.wy - 14);
-
-      if (isSelected) {
+      if (isSelected || isHovered) {
         ctx.beginPath();
-        ctx.arc(bw.wx, bw.wy, 24, 0, Math.PI * 2);
+        ctx.arc(bw.wx, bw.wy, 18, 0, Math.PI * 2);
         ctx.strokeStyle = '#38bdf8';
         ctx.lineWidth = 2;
         ctx.stroke();
+      }
+
+      if ((isSelected || isHovered || mapTransform.scale >= 1.35) && isMatch) {
+        drawMapLabel(ctx, '⚔️ ' + b.name, bw.wx, bw.wy - 18, '#fca5a5', 'rgba(69, 10, 10, 0.9)');
       }
     }
   }
@@ -3305,45 +3443,38 @@ function renderWorldMap() {
       const c = liveChests[i];
       const cw = getChestWorldCoords(c, i);
       const isSelected = mapSelectedTarget && mapSelectedTarget.type === 'chest' && mapSelectedTarget.data.id === c.id;
+      const isHovered = mapHoveredTarget && mapHoveredTarget.type === 'chest' && mapHoveredTarget.data.id === c.id;
       const isMatch = !mapSearchQuery || c.name.toLowerCase().includes(mapSearchQuery);
 
-      // Pin Color
       const pinColor = c.is_ready ? '#10b981' : '#f59e0b';
 
-      // Pin circle
       ctx.beginPath();
-      ctx.arc(cw.wx, cw.wy, 7, 0, Math.PI * 2);
+      ctx.arc(cw.wx, cw.wy, 6, 0, Math.PI * 2);
       ctx.fillStyle = isMatch ? pinColor : '#475569';
       ctx.fill();
       ctx.strokeStyle = '#070b14';
       ctx.lineWidth = 1.5;
       ctx.stroke();
 
-      // Pulsing wave ring for respawning timers
       if (!c.is_ready && isMatch) {
         ctx.beginPath();
-        ctx.arc(cw.wx, cw.wy, 13, 0, Math.PI * 2);
-        ctx.strokeStyle = 'rgba(245, 158, 11, 0.5)';
-        ctx.lineWidth = 1.5;
+        ctx.arc(cw.wx, cw.wy, 11, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(245, 158, 11, 0.6)';
+        ctx.lineWidth = 1.2;
         ctx.stroke();
       }
 
-      // Selection ring
-      if (isSelected) {
+      if (isSelected || isHovered) {
         ctx.beginPath();
-        ctx.arc(cw.wx, cw.wy, 18, 0, Math.PI * 2);
-        ctx.strokeStyle = '#38bdf8';
+        ctx.arc(cw.wx, cw.wy, 15, 0, Math.PI * 2);
+        ctx.strokeStyle = isSelected ? '#38bdf8' : '#ffffff';
         ctx.lineWidth = 2;
         ctx.stroke();
       }
 
-      // When zoomed in, render badge label
-      if (mapTransform.scale >= 0.75 && isMatch) {
-        ctx.fillStyle = c.is_ready ? '#34d399' : '#fde68a';
-        ctx.font = '9px system-ui, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'top';
-        ctx.fillText(c.is_ready ? 'Ready' : c.remaining_formatted, cw.wx, cw.wy + 9);
+      if ((isSelected || isHovered || mapTransform.scale >= 1.35) && isMatch) {
+        const labelText = c.is_ready ? `${c.name} (Ready)` : `${c.name} (${c.remaining_formatted})`;
+        drawMapLabel(ctx, labelText, cw.wx, cw.wy + 15, c.is_ready ? '#34d399' : '#fde68a');
       }
     }
   }
@@ -3354,30 +3485,27 @@ function renderWorldMap() {
       const g = mapGraves[i];
       const gw = getGraveWorldCoords(g, i);
       const isSelected = mapSelectedTarget && mapSelectedTarget.type === 'grave' && mapSelectedTarget.data.id === g.id;
+      const isHovered = mapHoveredTarget && mapHoveredTarget.type === 'grave' && mapHoveredTarget.data.id === g.id;
       const isMatch = !mapSearchQuery || g.name.toLowerCase().includes(mapSearchQuery) || (g.zone || '').toLowerCase().includes(mapSearchQuery);
 
       ctx.beginPath();
-      ctx.arc(gw.wx, gw.wy, 7, 0, Math.PI * 2);
-      ctx.fillStyle = isMatch ? 'rgba(168, 85, 247, 0.9)' : '#475569';
+      ctx.arc(gw.wx, gw.wy, 6, 0, Math.PI * 2);
+      ctx.fillStyle = isMatch ? 'rgba(168, 85, 247, 0.95)' : '#475569';
       ctx.fill();
       ctx.strokeStyle = '#070b14';
       ctx.lineWidth = 1.5;
       ctx.stroke();
 
-      if (isSelected) {
+      if (isSelected || isHovered) {
         ctx.beginPath();
-        ctx.arc(gw.wx, gw.wy, 18, 0, Math.PI * 2);
-        ctx.strokeStyle = '#38bdf8';
+        ctx.arc(gw.wx, gw.wy, 15, 0, Math.PI * 2);
+        ctx.strokeStyle = isSelected ? '#38bdf8' : '#ffffff';
         ctx.lineWidth = 2;
         ctx.stroke();
       }
 
-      if (mapTransform.scale >= 0.75 && isMatch) {
-        ctx.fillStyle = '#e9d5ff';
-        ctx.font = '9px system-ui, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'top';
-        ctx.fillText(`🪦 #${g.index}`, gw.wx, gw.wy + 9);
+      if ((isSelected || isHovered || mapTransform.scale >= 1.35) && isMatch) {
+        drawMapLabel(ctx, `🪦 #${g.index} Grave`, gw.wx, gw.wy + 15, '#e9d5ff', 'rgba(46, 16, 101, 0.9)');
       }
     }
   }
@@ -3388,35 +3516,40 @@ function renderWorldMap() {
       const camp = mapCamps[i];
       const cw = getCampWorldCoords(camp, i);
       const isSelected = mapSelectedTarget && mapSelectedTarget.type === 'camp' && mapSelectedTarget.data.index === camp.index;
+      const isHovered = mapHoveredTarget && mapHoveredTarget.type === 'camp' && mapHoveredTarget.data.index === camp.index;
       const isMatch = !mapSearchQuery || camp.name.toLowerCase().includes(mapSearchQuery);
 
       ctx.beginPath();
-      ctx.arc(cw.wx, cw.wy, 7, 0, Math.PI * 2);
-      ctx.fillStyle = isMatch ? 'rgba(6, 182, 212, 0.9)' : '#475569';
+      ctx.arc(cw.wx, cw.wy, 6, 0, Math.PI * 2);
+      ctx.fillStyle = isMatch ? 'rgba(6, 182, 212, 0.95)' : '#475569';
       ctx.fill();
       ctx.strokeStyle = '#070b14';
       ctx.lineWidth = 1.5;
       ctx.stroke();
 
-      if (isSelected) {
+      if (isSelected || isHovered) {
         ctx.beginPath();
-        ctx.arc(cw.wx, cw.wy, 18, 0, Math.PI * 2);
-        ctx.strokeStyle = '#38bdf8';
+        ctx.arc(cw.wx, cw.wy, 15, 0, Math.PI * 2);
+        ctx.strokeStyle = isSelected ? '#38bdf8' : '#ffffff';
         ctx.lineWidth = 2;
         ctx.stroke();
       }
 
-      if (mapTransform.scale >= 0.75 && isMatch) {
-        ctx.fillStyle = '#67e8f9';
-        ctx.font = '9px system-ui, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'top';
-        ctx.fillText(`⛺ #${camp.index}`, cw.wx, cw.wy + 9);
+      if ((isSelected || isHovered || mapTransform.scale >= 1.35) && isMatch) {
+        drawMapLabel(ctx, `⛺ #${camp.index} Camp`, cw.wx, cw.wy + 15, '#67e8f9', 'rgba(8, 51, 68, 0.9)');
       }
     }
   }
 
   ctx.restore();
+
+  // 8. Compass Rose Indicator in Top-Right
+  drawCompassRose(ctx, width - 42, 42);
+
+  // 9. Floating Hover Tooltip
+  if (mapHoveredTarget && !mapIsDragging) {
+    drawHoverTooltip(ctx, mapHoveredTarget, mapMousePos.x, mapMousePos.y);
+  }
 }
 
 // ----------------- REFRESH LOOPS -----------------
