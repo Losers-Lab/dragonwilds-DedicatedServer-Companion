@@ -220,28 +220,29 @@ def calculate_day_cycle(day_count: float, save_mtime: float = 0.0) -> dict:
     total_elapsed = (fractional_sec + elapsed_save) % DAY_CYCLE_LENGTH_SECONDS
 
     cycle_pos = total_elapsed / DAY_CYCLE_LENGTH_SECONDS
-    # Needle starts at Dawn (210°, approx 7 o'clock) and rotates clockwise across 240° day, then 120° night
-    angle_deg = ((210.0 + cycle_pos * 360.0) % 360.0)
+    # Needle starts at the top (0° / 12 o'clock) for the start of the new day
+    # Rotates clockwise: 0° to 240° is daytime, 240° to 360° (top) is night time
+    angle_deg = (cycle_pos * 360.0) % 360.0
 
-    # 240° day (210° to 90° clockwise: 210->360->90) = ~66.7% of cycle
-    # 120° night (90° to 210° clockwise) = ~33.3% of cycle
-    if 210 <= angle_deg < 270:
+    # 240° day (0° to 240° clockwise) = 66.7% of cycle
+    # 120° night (240° to 360° / 0°) = 33.3% of cycle
+    if 0 <= angle_deg < 60:
         phase = "Dawn / Early Morning"
         icon = "🌅"
         is_night = False
-    elif 270 <= angle_deg or angle_deg < 30:
+    elif 60 <= angle_deg < 180:
         phase = "Midday / Noon"
         icon = "☀️"
         is_night = False
-    elif 30 <= angle_deg < 90:
+    elif 180 <= angle_deg < 240:
         phase = "Afternoon / Sunset"
         icon = "🌤️"
         is_night = False
-    elif 90 <= angle_deg < 150:
+    elif 240 <= angle_deg < 300:
         phase = "Dusk / Early Night"
         icon = "🌇"
         is_night = True
-    else:  # 150 <= angle_deg < 210
+    else:  # 300 <= angle_deg < 360
         phase = "Midnight"
         icon = "🌙"
         is_night = True
