@@ -82,6 +82,18 @@ def api_items():
     return jsonify(get_master_items(category=category, search_query=search))
 
 
+@app.route("/api/bosses")
+def api_bosses():
+    from bosses import get_boss_encounters
+    return jsonify(get_boss_encounters())
+
+
+@app.route("/api/world-events")
+def api_world_events():
+    from bosses import get_live_world_events
+    return jsonify(get_live_world_events())
+
+
 @app.route("/api/roster")
 def api_roster():
     st = get_state()
@@ -385,6 +397,10 @@ def index():
         <span>Items</span>
         <span class="badge" id="nav-items-count">1.7k</span>
       </a>
+      <a class="nav-link" data-tab="bosses" onclick="setTab('bosses')">
+        <span>Boss Arenas</span>
+        <span class="badge" id="nav-bosses-count">0</span>
+      </a>
       <a class="nav-link" data-tab="players" onclick="setTab('players')">
         <span>Players</span>
         <span class="badge" id="nav-players-count">0</span>
@@ -411,6 +427,14 @@ def index():
       </a>
       <a href="/api/items" target="_blank">
         <span>API Items</span>
+        <span style="font-size:11px;">↗</span>
+      </a>
+      <a href="/api/bosses" target="_blank">
+        <span>API Bosses</span>
+        <span style="font-size:11px;">↗</span>
+      </a>
+      <a href="/api/world-events" target="_blank">
+        <span>API World Events</span>
         <span style="font-size:11px;">↗</span>
       </a>
       <a href="/api/weather" target="_blank">
@@ -455,6 +479,7 @@ def index():
       <a class="mobile-link" data-tab="respawns" onclick="setTab('respawns')">Respawns</a>
       <a class="mobile-link" data-tab="farming" onclick="setTab('farming')">Agriculture</a>
       <a class="mobile-link" data-tab="items" onclick="setTab('items')">Items</a>
+      <a class="mobile-link" data-tab="bosses" onclick="setTab('bosses')">Bosses</a>
       <a class="mobile-link" data-tab="players" onclick="setTab('players')">Players</a>
       <a class="mobile-link" data-tab="backups" onclick="setTab('backups')">Backups</a>
       <a class="mobile-link" data-tab="leaderboard" onclick="setTab('leaderboard')">Leaderboard</a>
@@ -1042,6 +1067,85 @@ def index():
         </table>
       </div>
     </div>
+
+    <!-- VIEW 9: BOSS ENCOUNTERS & WORLD ARENAS -->
+    <div id="view-bosses" style="display:none;">
+      <div class="card" style="margin-bottom:20px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+          <div>
+            <h2 style="margin:0; font-size:20px; font-weight:bold; color:#f8fafc; display:flex; align-items:center; gap:8px;">
+              <span>⚔️</span> Boss Encounters & World Arenas
+            </h2>
+            <div style="font-size:13px; color:#94a3b8; margin-top:2px;">
+              Objective verification of canonical world boss gates, sanctums, and trial arenas in the active save.
+            </div>
+          </div>
+          <div>
+            <span class="data-source-badge saved" title="Extracted from active world save teleporters and gateways">💾 Save File</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid" style="margin-bottom:20px;">
+        <div class="card">
+          <div class="icon">🏛️</div>
+          <div class="label">Total Major Boss Arenas</div>
+          <div class="value" id="boss-stat-total">7</div>
+        </div>
+        <div class="card">
+          <div class="icon">🔓</div>
+          <div class="label">Active / Discovered Gates</div>
+          <div class="value" id="boss-stat-discovered" style="color:#34d399;">0</div>
+        </div>
+        <div class="card">
+          <div class="icon">🗺️</div>
+          <div class="label">Active World Save</div>
+          <div class="value" id="boss-stat-save" style="font-size:15px; color:#f8fafc; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">--</div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:20px;">
+        <h3 style="margin-top:0; color:#f8fafc; font-size:16px; display:flex; align-items:center; gap:8px;">
+          <span>👑</span> Canonical Boss Sanctums & Arenas
+        </h3>
+        <table class="table" style="width:100%; text-align:left; border-collapse:collapse;">
+          <thead>
+            <tr style="border-bottom:1px solid #1c283f; color:#94a3b8; font-size:12px; text-transform:uppercase;">
+              <th>Boss Encounter / Arena</th>
+              <th>Lore Region</th>
+              <th>Classification</th>
+              <th>World Status</th>
+            </tr>
+          </thead>
+          <tbody id="bosses-table-body">
+            <tr><td colspan="4" style="color:#94a3b8; text-align:center; padding:24px;">Scanning boss teleporters and gateways...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- LIVE SERVER EVENT STREAM -->
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+          <h3 style="margin:0; color:#f8fafc; font-size:16px; display:flex; align-items:center; gap:8px;">
+            <span>⚡</span> Live Server World Events & Raids
+          </h3>
+          <span class="data-source-badge live" title="Direct telemetry from RSDragonwilds.log">⚡ Live Telemetry</span>
+        </div>
+        <table class="table" style="width:100%; text-align:left; border-collapse:collapse;">
+          <thead>
+            <tr style="border-bottom:1px solid #1c283f; color:#94a3b8; font-size:12px; text-transform:uppercase;">
+              <th>Timestamp</th>
+              <th>Event Category</th>
+              <th>Telemetry Message</th>
+              <th>Source</th>
+            </tr>
+          </thead>
+          <tbody id="world-events-table-body">
+            <tr><td colspan="4" style="color:#94a3b8; text-align:center; padding:20px;">Streaming live world events from server log...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
   </main>
 </div>
 
@@ -1094,6 +1198,7 @@ function setTab(tab) {
 
   const vFarming = document.getElementById('view-farming');
   const vItems = document.getElementById('view-items');
+  const vBosses = document.getElementById('view-bosses');
 
   vOverview.style.display = 'none';
   vLogs.style.display = 'none';
@@ -1104,6 +1209,7 @@ function setTab(tab) {
   if (vRespawns) vRespawns.style.display = 'none';
   if (vFarming) vFarming.style.display = 'none';
   if (vItems) vItems.style.display = 'none';
+  if (vBosses) vBosses.style.display = 'none';
 
   if (tab === 'overview') {
     title.innerText = 'Overview';
@@ -1124,6 +1230,12 @@ function setTab(tab) {
     subtitle.innerText = 'Explore and search 1,704 official in-game items, weapons, and resources';
     if (vItems) vItems.style.display = 'block';
     loadMasterItems();
+  } else if (tab === 'bosses') {
+    title.innerText = 'Boss Arenas & Events';
+    subtitle.innerText = 'Objective encounter gates, boss arenas & live world raid telemetry';
+    if (vBosses) vBosses.style.display = 'block';
+    loadBosses();
+    loadLiveWorldEvents();
   } else if (tab === 'logs') {
     title.innerText = 'Server Logs';
     subtitle.innerText = 'Stream, filter and search RSDragonwilds server logs';
@@ -1905,6 +2017,104 @@ function renderMasterItems() {
   }
 }
 
+// ----------------- BOSS ENCOUNTERS & ARENAS -----------------
+let bossesData = null;
+let worldEventsData = [];
+
+async function loadBosses() {
+  try {
+    const res = await fetch('/api/bosses');
+    bossesData = await res.json();
+    renderBosses();
+  } catch(e) {}
+}
+
+function renderBosses() {
+  if (!bossesData) return;
+  const s = bossesData.summary || {};
+  const elTotal = document.getElementById('boss-stat-total');
+  const elDisc = document.getElementById('boss-stat-discovered');
+  const elSave = document.getElementById('boss-stat-save');
+  const badge = document.getElementById('nav-bosses-count');
+
+  if (elTotal) elTotal.innerText = s.total_boss_arenas || 7;
+  if (elDisc) elDisc.innerText = s.discovered_arenas || 0;
+  if (elSave) elSave.innerText = s.active_world_save || 'None';
+  if (badge) badge.innerText = `${s.discovered_arenas || 0}/${s.total_boss_arenas || 7}`;
+
+  const tbody = document.getElementById('bosses-table-body');
+  if (!tbody) return;
+
+  const encounters = bossesData.encounters || [];
+  if (encounters.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="4" style="color:#94a3b8; text-align:center; padding:24px;">No boss encounters discovered in active world.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = encounters.map(b => {
+    const statusBadge = b.world_discovered
+      ? '<span style="background:#064e3b; color:#34d399; padding:3px 10px; border-radius:999px; font-size:11.5px; font-weight:bold;">🟢 Discovered & Active</span>'
+      : '<span style="background:#1e293b; color:#94a3b8; padding:3px 10px; border-radius:999px; font-size:11.5px; font-weight:bold;">🔒 Undiscovered</span>';
+
+    return `
+      <tr style="border-bottom:1px solid #141f33;">
+        <td style="padding:12px 14px;">
+          <div style="font-weight:600; color:#f8fafc; font-size:14px;">${escapeHtml(b.name)}</div>
+          <div style="font-size:12px; color:#64748b; margin-top:2px;">${escapeHtml(b.description)}</div>
+        </td>
+        <td style="padding:12px 14px; color:#cbd5e1; font-size:13px;">${escapeHtml(b.lore_region)}</td>
+        <td style="padding:12px 14px;">
+          <span style="background:#1e293b; color:#cbd5e1; padding:2px 8px; border-radius:6px; font-size:11.5px; font-weight:500;">
+            ${escapeHtml(b.category)}
+          </span>
+        </td>
+        <td style="padding:12px 14px;">${statusBadge}</td>
+      </tr>
+    `;
+  }).join('');
+}
+
+async function loadLiveWorldEvents() {
+  try {
+    const res = await fetch('/api/world-events');
+    worldEventsData = await res.json();
+    renderLiveWorldEvents();
+  } catch(e) {}
+}
+
+function renderLiveWorldEvents() {
+  const tbody = document.getElementById('world-events-table-body');
+  if (!tbody) return;
+
+  if (!worldEventsData || worldEventsData.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="4" style="color:#94a3b8; text-align:center; padding:20px;">No recent world events or raids logged.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = worldEventsData.map(ev => {
+    let typeStyle = 'background:#1e293b; color:#cbd5e1;';
+    if (ev.badge === 'raid') typeStyle = 'background:#7f1d1d; color:#fca5a5;';
+    else if (ev.badge === 'combat') typeStyle = 'background:#78350f; color:#fde68a;';
+    else if (ev.badge === 'chest') typeStyle = 'background:#064e3b; color:#34d399;';
+    else if (ev.badge === 'player') typeStyle = 'background:#1e3a8a; color:#93c5fd;';
+
+    return `
+      <tr style="border-bottom:1px solid #141f33;">
+        <td style="padding:10px 14px; font-family:monospace; color:#94a3b8; font-size:12px; white-space:nowrap;">${escapeHtml(ev.timestamp)}</td>
+        <td style="padding:10px 14px;">
+          <span style="${typeStyle} padding:2px 8px; border-radius:6px; font-size:11px; font-weight:600;">
+            ${escapeHtml(ev.type)}
+          </span>
+        </td>
+        <td style="padding:10px 14px; color:#f8fafc; font-size:13px;">${escapeHtml(ev.message)}</td>
+        <td style="padding:10px 14px;">
+          <span class="data-source-badge live" style="font-size:10px; padding:2px 6px;">${escapeHtml(ev.source)}</span>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
 // ----------------- REFRESH LOOPS -----------------
 async function refreshAll() {
   await loadStatus();
@@ -1912,6 +2122,10 @@ async function refreshAll() {
   await loadSaveFiles();
   await loadRespawns();
   if (currentTab === 'farming') await loadFarming();
+  if (currentTab === 'bosses') {
+    await loadBosses();
+    await loadLiveWorldEvents();
+  }
   if (currentTab === 'players') await loadRoster();
   if (currentTab === 'logs' && isLive) {
     await fetchLogs();
@@ -1920,7 +2134,7 @@ async function refreshAll() {
 
 // Initial hash support
 const hash = (window.location.hash || '').replace('#', '');
-if (['overview', 'respawns', 'farming', 'items', 'players', 'backups', 'leaderboard', 'events', 'logs'].includes(hash)) {
+if (['overview', 'respawns', 'farming', 'items', 'bosses', 'players', 'backups', 'leaderboard', 'events', 'logs'].includes(hash)) {
   setTab(hash);
 } else {
   setTab('overview');
@@ -1934,6 +2148,10 @@ setInterval(() => {
   }
   if (currentTab === 'farming') {
     loadFarming();
+  }
+  if (currentTab === 'bosses') {
+    loadBosses();
+    loadLiveWorldEvents();
   }
   if (currentTab === 'logs' && isLive) {
     fetchLogs();
