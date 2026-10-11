@@ -916,7 +916,7 @@ def index():
               <span>🌱</span> Farming Plots & Agriculture Status
             </h2>
             <div style="font-size:13px; color:#94a3b8; margin-top:2px;">
-              Server-extracted telemetry of placed hydration infrastructure, rain catchers, composters, and growing trees.
+              Server-extracted telemetry of in-world planted crops, medicinal herbs, growing saplings, and hydration infrastructure.
             </div>
           </div>
           <div>
@@ -926,6 +926,16 @@ def index():
       </div>
 
       <div class="grid" id="farming-summary-grid">
+        <div class="card">
+          <div class="icon">🌾</div>
+          <div class="label">Planted Crops & Herbs</div>
+          <div class="value" id="farm-stat-crops" style="color:#38bdf8;">0</div>
+        </div>
+        <div class="card">
+          <div class="icon">🌳</div>
+          <div class="label">Growing Saplings & Trees</div>
+          <div class="value" id="farm-stat-trees" style="color:#34d399;">0</div>
+        </div>
         <div class="card">
           <div class="icon">💧</div>
           <div class="label">Water Storage Barrels</div>
@@ -941,15 +951,33 @@ def index():
           <div class="label">Composting Stations</div>
           <div class="value" id="farm-stat-composters">0</div>
         </div>
-        <div class="card">
-          <div class="icon">🌳</div>
-          <div class="label">Growing Crops & Trees</div>
-          <div class="value" id="farm-stat-trees" style="color:#34d399;">0</div>
-        </div>
       </div>
 
+      <!-- ACTIVE CROPS TABLE -->
+      <div class="card" style="margin-bottom:20px;">
+        <h3 style="margin-top:0; color:#f8fafc; font-size:16px; display:flex; align-items:center; gap:8px;">
+          <span>🌾</span> Active In-World Crops & Medicinal Herbs
+        </h3>
+        <table class="table" style="width:100%; text-align:left; border-collapse:collapse;">
+          <thead>
+            <tr style="border-bottom:1px solid #1c283f; color:#94a3b8; font-size:12px; text-transform:uppercase;">
+              <th>Crop / Plant Name</th>
+              <th>Category</th>
+              <th>World Instances</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="crops-table-body">
+            <tr><td colspan="4" style="color:#94a3b8; text-align:center; padding:20px;">Scanning crops and herbs in active save file...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- INFRASTRUCTURE & ARBORICULTURE TABLE -->
       <div class="card">
-        <h3 style="margin-top:0; color:#f8fafc; font-size:16px;">Active In-World Agriculture Infrastructure</h3>
+        <h3 style="margin-top:0; color:#f8fafc; font-size:16px; display:flex; align-items:center; gap:8px;">
+          <span>🏡</span> Placed Farming Infrastructure & Arboriculture
+        </h3>
         <table class="table" style="width:100%; text-align:left; border-collapse:collapse;">
           <thead>
             <tr style="border-bottom:1px solid #1c283f; color:#94a3b8; font-size:12px; text-transform:uppercase;">
@@ -1767,12 +1795,37 @@ function renderFarming() {
   const elRain = document.getElementById('farm-stat-rain');
   const elCompost = document.getElementById('farm-stat-composters');
   const elTrees = document.getElementById('farm-stat-trees');
+  const elCrops = document.getElementById('farm-stat-crops');
 
   if (elBarrels) elBarrels.innerText = s.total_water_barrels || 0;
   if (elRain) elRain.innerText = s.total_rain_catchers || 0;
   if (elCompost) elCompost.innerText = s.total_composters || 0;
-  if (elTrees) elTrees.innerText = s.total_growing_trees || 0;
+  if (elTrees) elTrees.innerText = (s.total_growing_trees || 0) + (s.total_saplings || 0);
+  if (elCrops) elCrops.innerText = s.total_crops || 0;
 
+  // 1. Render Active In-World Crops & Herbs
+  const cropsBody = document.getElementById('crops-table-body');
+  if (cropsBody) {
+    const crops = farmingData.crops || [];
+    if (crops.length === 0) {
+      cropsBody.innerHTML = '<tr><td colspan="4" style="color:#94a3b8; text-align:center; padding:20px;">No wild or planted crop instances found in active save file.</td></tr>';
+    } else {
+      cropsBody.innerHTML = crops.map(c => `
+        <tr style="border-bottom:1px solid #141f33;">
+          <td style="padding:12px 14px; font-weight:600; color:#f8fafc;">${escapeHtml(c.name)}</td>
+          <td style="padding:12px 14px; color:#94a3b8; font-size:13px;">${escapeHtml(c.category)}</td>
+          <td style="padding:12px 14px; font-weight:bold; color:#38bdf8;">${c.count || 0}</td>
+          <td style="padding:12px 14px;">
+            <span style="background:#064e3b; color:#34d399; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:600;">
+              ${escapeHtml(c.status || 'Active')}
+            </span>
+          </td>
+        </tr>
+      `).join('');
+    }
+  }
+
+  // 2. Render Placed Farming Infrastructure & Arboriculture
   const tbody = document.getElementById('farming-table-body');
   if (!tbody) return;
 
@@ -1781,14 +1834,14 @@ function renderFarming() {
   const allEntries = [...structures, ...growing];
 
   if (allEntries.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="4" style="color:#94a3b8; text-align:center; padding:20px;">No placed agriculture structures or planted crops detected in current save file.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="4" style="color:#94a3b8; text-align:center; padding:20px;">No placed agriculture structures or planted saplings detected in current save file.</td></tr>';
     return;
   }
 
   tbody.innerHTML = allEntries.map(item => `
     <tr style="border-bottom:1px solid #141f33;">
       <td style="padding:12px 14px; font-weight:600; color:#f8fafc;">${escapeHtml(item.name)}</td>
-      <td style="padding:12px 14px; color:#94a3b8; font-size:13px;">${escapeHtml(item.type || item.stage_tracking || 'Agriculture')}</td>
+      <td style="padding:12px 14px; color:#94a3b8; font-size:13px;">${escapeHtml(item.type || item.stage_tracking || item.category || 'Agriculture')}</td>
       <td style="padding:12px 14px; font-weight:bold; color:#38bdf8;">${item.count || 0}</td>
       <td style="padding:12px 14px;">
         <span style="background:#064e3b; color:#34d399; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:600;">

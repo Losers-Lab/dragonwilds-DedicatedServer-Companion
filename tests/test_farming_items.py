@@ -53,6 +53,27 @@ class TestFarmingAndMasterItems(unittest.TestCase):
         self.assertEqual(len(res["growing_trees"]), 0)
         self.assertEqual(len(res["structures"]), 2)
 
+    def test_farming_crops_parsing(self):
+        save_path = os.path.join(self.temp_dir, "World_Test_Crops.sav")
+        dummy_content = (
+            b"HeaderData...BP_Spawner_Flax_C_UAID_111...BP_Spawner_Flax_C_UAID_222..."
+            b"BP_Spawner_Onion_C_UAID_333...BP_Spawner_Snapdragon_C_UAID_444..."
+            b"BP_BM_Sapling_Ash_01_C_UAID_555"
+        )
+        with open(save_path, "wb") as f:
+            f.write(dummy_content)
+
+        res = get_farming_status(saves_dir=self.temp_dir)
+        self.assertIn("crops", res)
+        self.assertEqual(res["summary"]["total_crops"], 4)
+        self.assertEqual(res["summary"]["total_saplings"], 1)
+        flax_entry = next(c for c in res["crops"] if "Flax" in c["name"])
+        self.assertEqual(flax_entry["count"], 2)
+        onion_entry = next(c for c in res["crops"] if "Onion" in c["name"])
+        self.assertEqual(onion_entry["count"], 1)
+        snap_entry = next(c for c in res["crops"] if "Snapdragon" in c["name"])
+        self.assertEqual(snap_entry["count"], 1)
+
     def test_master_items_filtering(self):
         # Master items loads 1,704 items from data/master_items.json
         items = get_master_items()
